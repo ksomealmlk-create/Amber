@@ -344,57 +344,53 @@ class GamePainter extends CustomPainter {
     final px = p.x - e.cam, py = p.y;
     if (e.phase == Phase.dead) return;
     if (p.inv > 0 && t % 6 < 3) return;
-    final run = p.g ? math.sin(p.anim * 2) : 0.0;
-    final stretch = 1 - p.sq;
+    const ch = 36.0;
+    const k = ch / 448.0;
+    const dw = 179 * k;
+    final hipP = Offset(-dw / 2 + 93.3 * k, -ch + 277.8 * k);
+    final shP = Offset(-dw / 2 + 86.8 * k, -ch + 157.4 * k);
+    final paint = Paint()..filterQuality = FilterQuality.medium;
+    void layer(String n, {double ang = 0, Offset piv = Offset.zero, double dy = 0}) {
+      final img = a.sp[n]!;
+      c.save();
+      c.translate(0, dy);
+      if (ang != 0) {
+        c.translate(piv.dx, piv.dy);
+        c.rotate(ang);
+        c.translate(-piv.dx, -piv.dy);
+      }
+      c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), const Rect.fromLTWH(-dw / 2, -ch, dw, ch), paint);
+      c.restore();
+    }
+
     c.save();
     c.translate(px + 7, py + 22);
-    c.scale(p.f.toDouble() * (1 + p.sq * .5), stretch);
-    c.translate(0, -22);
-    // أطراف
-    final boot = _fill(const Color(0xFF0B0812));
-    final ly = p.g ? run * 2.2 : -1.0;
-    c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(-4 + ly, 19, 4, 3), const Radius.circular(1.2)), boot);
-    c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(1 - ly, 19, 4, 3), const Radius.circular(1.2)), boot);
-    // الوشاح الطائر
-    final sc = Path()
-      ..moveTo(-4, 8)
-      ..quadraticBezierTo(-9 - math.sin(t / 5) * 2 - p.vx.abs() * .8, 8 + math.sin(t / 7) * 2, -12 - math.sin(t / 6) * 3, 11 + math.cos(t / 5) * 2)
-      ..lineTo(-10, 13)
-      ..quadraticBezierTo(-7, 11, -3, 11)
-      ..close();
-    c.drawPath(sc, _fill(const Color(0xFFC4532E)));
-    // الرداء
-    final cloak = Path()
-      ..moveTo(-6, 22)
-      ..lineTo(-4, 6)
-      ..quadraticBezierTo(0, -2, 5, 6)
-      ..lineTo(7, 22)
-      ..quadraticBezierTo(0, 23.5 + run * .5, -6, 22)
-      ..close();
-    c.drawPath(cloak, Paint()..shader = ui.Gradient.linear(const Offset(0, 4), const Offset(0, 22), const [Color(0xFF3A2D5C), Color(0xFF130E20)]));
-    c.drawRect(const Rect.fromLTWH(-5.5, 20.5, 12, 1.2), _fill(const Color(0x66FFB347)));
-    c.drawRect(const Rect.fromLTWH(-5, 7, 11, 3), _fill(const Color(0xFFE0703A)));
-    // القلنسوة
-    c.drawCircle(const Offset(0, 5), 6.2, Paint()..shader = ui.Gradient.radial(const Offset(-2, 2), 8, const [Color(0xFF3E3163), Color(0xFF0F0A1A)]));
-    c.drawOval(Rect.fromCenter(center: const Offset(2.4, 5.4), width: 6.6, height: 6), _fill(const Color(0xFF05030A)));
-    glow(c, 4, 5, 5, const C3(255, 210, 122), .8, add: true);
-    c.drawRect(const Rect.fromLTWH(2.6, 4.2, 3, 1.8), _fill(const Color(0xFFFFE3A0)));
-    // الفانوس
-    final bob = math.sin(t / 10) * 1.2 + (p.g ? run * 1.2 : 0);
-    c.drawLine(const Offset(2, 12), Offset(8, 12 + bob), Paint()..color = const Color(0xFF1A1424)..strokeWidth = 1.6..strokeCap = StrokeCap.round);
-    glow(c, 8.5, 14.5 + bob, 9, const C3(255, 190, 90), .9, add: true);
-    c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(8.5, 14.5 + bob), width: 5, height: 6), const Radius.circular(1.4)), _fill(const Color(0xFFFFB347)));
-    c.drawCircle(Offset(8.5, 14.5 + bob), 1.4, _fill(const Color(0xFFFFF4D2)));
+    c.scale(p.f.toDouble() * (1 + p.sq * .5), 1 - p.sq);
+    c.rotate(p.lean);
+    // ظل خفيف تحت القدمين
+    c.drawOval(Rect.fromCenter(center: const Offset(0, 0.5), width: 14, height: 3), _fill(const Color(0x55000000)));
+    layer('hornet_armF', ang: p.aF, piv: shP, dy: p.bob);
+    layer('hornet_legF', ang: p.lF, piv: hipP);
+    layer('hornet_legN', ang: p.lN, piv: hipP);
+    layer('hornet_body', dy: p.bob);
+    layer('hornet_armN', ang: p.aN, piv: shP, dy: p.bob);
+    // الفانوس في اليد
+    final hand = Offset(shP.dx - math.sin(p.aN) * 5.5, shP.dy + p.bob + math.cos(p.aN) * 5.5);
+    final lp = hand + const Offset(1.6, 1.8);
+    c.drawLine(hand, lp, Paint()..color = const Color(0xFF1A1424)..strokeWidth = 0.8);
+    glow(c, lp.dx, lp.dy + 1, 10, const C3(255, 190, 90), .9, add: true);
+    c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: lp + const Offset(0, 1.5), width: 3.4, height: 4.2), const Radius.circular(1)), _fill(const Color(0xFFFFB347)));
+    c.drawCircle(lp + const Offset(0, 1.5), 0.9, _fill(const Color(0xFFFFF4D2)));
     c.restore();
     // ضربة السيف
     if (p.atk > 3 && p.atk < 13) {
-      final k = (13 - p.atk) / 10;
+      final k2 = (13 - p.atk) / 10;
       c.save();
       c.translate(px + 7, py + 12);
       c.scale(p.f.toDouble(), 1);
       final r = Rect.fromCircle(center: const Offset(4, 0), radius: 22);
-      c.drawArc(r, -1.1 + k * .6, 2.2 - k * .8, false, Paint()..color = Color.fromRGBO(255, 230, 170, 1 - k * .6)..style = PaintingStyle.stroke..strokeWidth = 4.5..strokeCap = StrokeCap.round..blendMode = BlendMode.plus);
-      c.drawArc(r, -1.1 + k * .6, 2.2 - k * .8, false, Paint()..color = Color.fromRGBO(255, 170, 80, .6 * (1 - k))..style = PaintingStyle.stroke..strokeWidth = 9..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4)..blendMode = BlendMode.plus);
+      c.drawArc(r, -1.1 + k2 * .6, 2.2 - k2 * .8, false, Paint()..color = Color.fromRGBO(255, 230, 170, 1 - k2 * .6)..style = PaintingStyle.stroke..strokeWidth = 4.5..strokeCap = StrokeCap.round..blendMode = BlendMode.plus);
+      c.drawArc(r, -1.1 + k2 * .6, 2.2 - k2 * .8, false, Paint()..color = Color.fromRGBO(255, 170, 80, .6 * (1 - k2))..style = PaintingStyle.stroke..strokeWidth = 9..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4)..blendMode = BlendMode.plus);
       c.restore();
     }
   }

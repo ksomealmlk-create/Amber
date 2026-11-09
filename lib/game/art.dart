@@ -120,6 +120,11 @@ class Art {
         a.sp['$n$suf'] = fr.image;
       }
     }
+    for (final n in const ['hornet_body', 'hornet_armN', 'hornet_armF', 'hornet_legN', 'hornet_legF']) {
+      final bd = await rootBundle.load('assets/sprites/$n.png');
+      final codec = await ui.instantiateImageCodec(bd.buffer.asUint8List());
+      a.sp[n] = (await codec.getNextFrame()).image;
+    }
     await a._build();
     a._buildProps();
     return a;

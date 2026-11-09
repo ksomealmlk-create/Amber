@@ -126,7 +126,7 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
           const SizedBox(height: 14),
           const SizedBox(
             width: 300,
-            child: Text('مجسمات CC0: Avramania · Virtual Museums of Małopolska · Galway3D · Cleveland Museum of Art',
+            child: Text('مجسمات CC0: Avramania · Virtual Museums of Małopolska · Galway3D · Cleveland Museum of Art · شخصية: Arjun Popescu (CC BY)',
                 textAlign: TextAlign.center, style: TextStyle(color: Color(0x66CFE4FF), fontSize: 10)),
           ),
         ]);

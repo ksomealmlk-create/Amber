@@ -8,9 +8,10 @@ enum Phase { menu, playing, dead, won }
 
 class Player extends Box {
   double vx = 0, vy = 0, anim = 0, sq = 0;
+  double lN = 0, lF = 0, aN = 0, aF = 0, lean = 0, bob = 0; // زوايا أطراف الشخصية
   int f = 1, coy = 0, atk = 0, dash = 0, dcd = 0, hp = 5, inv = 0, jb = 0;
-  bool g = false, pj = false, pa = false, pd = false;
-  Player() : super(30, 400, 14, 22);
+  bool g = true, pj = false, pa = false, pd = false;
+  Player() : super(30, 418, 14, 22);
 }
 
 class Enemy extends Box {
@@ -113,6 +114,7 @@ class GameEngine extends ChangeNotifier {
     if (shake > 0) shake--;
     if (flash > 0) flash--;
     if (phase == Phase.menu) {
+      _animate();
       cam += ((math.sin(t / 300) * 0.5 + 0.5) * 120 - cam) * 0.01;
       return;
     }
@@ -285,7 +287,48 @@ class GameEngine extends ChangeNotifier {
       HapticFeedback.heavyImpact();
       notifyListeners();
     }
+    _animate();
     cam += ((math.max(0.0, math.min(kLW - vw, p.x - vw / 2 + p.f * 30))) - cam) * .1;
+  }
+
+  // ---- حركة الأطراف (رجلين وذراعين)
+  void _animate() {
+    double lN = 0, lF = 0, aN = 0, aF = 0, lean = 0, bob = 0;
+    final sp = math.min(1.0, p.vx.abs() / 2.7);
+    final ph = p.anim * 1.5;
+    if (p.dash > 0) {
+      lN = -0.75; lF = 0.7; aN = 1.2; aF = 1.0; lean = 0.3;
+    } else if (!p.g) {
+      if (p.vy < 0) {
+        lN = -0.6; lF = 0.4; aN = -1.1; aF = -0.8;
+      } else {
+        lN = -0.2; lF = 0.3; aN = -0.7; aF = -0.4;
+      }
+      lean = 0.05;
+    } else if (p.vx.abs() > 0.5) {
+      final sn = math.sin(ph);
+      final amp = 0.35 + 0.35 * sp;
+      final a2 = 0.5 + 0.3 * sp;
+      lN = -amp * sn; lF = amp * sn;
+      aN = a2 * sn; aF = -a2 * sn;
+      bob = -math.sin(ph).abs() * 0.9;
+      lean = 0.07 * sp;
+    } else {
+      final br = math.sin(t / 25.0);
+      aN = 0.08 * br; aF = -0.08 * br;
+      bob = br * 0.25;
+    }
+    if (p.atk > 0) {
+      aN = -1.6;
+      if (p.atk > 3) lean = 0.15;
+    }
+    const k = 0.3;
+    p.lN += (lN - p.lN) * k;
+    p.lF += (lF - p.lF) * k;
+    p.aN += (aN - p.aN) * k;
+    p.aF += (aF - p.aF) * k;
+    p.lean += (lean - p.lean) * k;
+    p.bob += (bob - p.bob) * k;
   }
 
   void _die() {
