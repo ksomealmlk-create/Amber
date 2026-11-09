@@ -20,26 +20,29 @@ class GamePainter extends CustomPainter {
       _orbs.add([r() * kLW, 60 + r() * 340, 2 + r() * 3, r() * 6]);
     }
     for (int i = 0; i < 26; i++) {
-      _tw.add([r() * kW, r() * kH * .55, r() * 6]);
+      _tw.add([r() * 1200, r() * kH * .55, r() * 6]);
     }
     for (int i = 0; i < 40; i++) {
-      _motes.add([r() * (kW + 40), r() * kH, r() * 6, .5 + r()]);
+      _motes.add([r() * 1400, r() * kH, r() * 6, .5 + r()]);
     }
   }
 
   final List<List<List<double>>> _layers = [[], [], []];
   final List<List<double>> _orbs = [], _tw = [], _motes = [];
   final math.Random _rn = math.Random();
+  double vw = kW;
 
   @override
   bool shouldRepaint(covariant CustomPainter old) => true;
 
   @override
   void paint(Canvas c, Size size) {
-    final s = size.width / kW;
+    final s = size.height / kH;
+    vw = math.min(kMaxView, size.width / s);
+    e.vw = vw;
     c.save();
     c.scale(s);
-    c.clipRect(const Rect.fromLTWH(0, 0, kW, kH));
+    c.clipRect(Rect.fromLTWH(0, 0, vw, kH));
     _scene(c);
     c.restore();
   }
@@ -56,16 +59,16 @@ class GamePainter extends CustomPainter {
     }
     c.save();
     c.translate(sx, sy);
-    c.drawRect(const Rect.fromLTWH(-12, -12, kW + 24, kH + 24), _fill(const Color(0xFF04060C)));
-    a.sky.draw(c, cam * .02, 0);
+    c.drawRect(Rect.fromLTWH(-12, -12, vw + 24, kH + 24), _fill(const Color(0xFF04060C)));
+    a.sky.draw(c, cam * .02, 0, vw);
     for (final q in _tw) {
       final al = .25 + .6 * (math.sin(t / 22 + q[2]) * .5 + .5);
-      final bx = (q[0] - cam * .03) % kW;
+      final bx = (q[0] - cam * .03) % vw;
       c.drawRect(Rect.fromLTWH(bx, q[1], 2, 2), _fill(Color.fromRGBO(215, 235, 255, al)));
     }
-    a.mt1.draw(c, cam * .08, 0);
+    a.mt1.draw(c, cam * .08, 0, vw);
     _fog(c, a.fog1, 250, .12, .15);
-    a.mt2.draw(c, cam * .18, 0);
+    a.mt2.draw(c, cam * .18, 0, vw);
     // أعمدة كهف متوازية
     const cols = [Color(0xFF0A1426), Color(0xFF0C1A33), Color(0xFF08101F)];
     for (int i = 0; i < 3; i++) {
@@ -73,7 +76,7 @@ class GamePainter extends CustomPainter {
       final path = Path();
       for (final q in _layers[i]) {
         final bx = q[0] - cam * f;
-        if (bx < -80 || bx > kW + 80) continue;
+        if (bx < -80 || bx > vw + 80) continue;
         path.moveTo(bx, kH);
         path.lineTo(bx + q[2] / 2, kH - q[1] - i * 10 - 40);
         path.lineTo(bx + q[2] + 20, kH);
@@ -87,17 +90,17 @@ class GamePainter extends CustomPainter {
     }
     for (final o in _orbs) {
       final bx = ((o[0] - cam * .5) % kLW);
-      if (bx > kW + 20) continue;
+      if (bx > vw + 20) continue;
       glow(c, bx, o[1] + math.sin(t / 60 + o[3]) * 10, o[2] * 7, const C3(140, 170, 255), .35, add: true);
     }
     c.drawRect(
-        const Rect.fromLTWH(0, 420, kW, 80),
+        Rect.fromLTWH(0, 420, vw, 80),
         Paint()..shader = ui.Gradient.linear(const Offset(0, 420), const Offset(0, kH), const [Color(0x003C96C8), Color(0x4D3C96C8)]));
-    a.wall.draw(c, cam * .8, 190);
+    a.wall.draw(c, cam * .8, 190, vw);
     // أشعة ضوء من الأقواس
     for (final ar in a.arches) {
       final x0 = ar.x - cam * .8;
-      if (x0 < -100 || x0 > kW + 100) continue;
+      if (x0 < -100 || x0 > vw + 100) continue;
       final top = 190 + 250 - ar.ah;
       final path = Path()
         ..moveTo(x0 - ar.hw, top)
@@ -132,17 +135,17 @@ class GamePainter extends CustomPainter {
       c.drawCircle(Offset(q.x - cam, q.y), q.size * (.4 + .6 * k), p);
     }
     for (final m in _motes) {
-      final bx = ((m[0] - cam * 1.2) % (kW + 40)) - 20 + math.sin(t / 50 + m[2]) * 6;
+      final bx = ((m[0] - cam * 1.2) % (vw + 40)) - 20 + math.sin(t / 50 + m[2]) * 6;
       final by = (m[1] - t * .12 * m[3]) % kH;
       c.drawCircle(Offset(bx, by), 1.1 * m[3], Paint()..color = Color.fromRGBO(170, 210, 255, .35 + .25 * math.sin(t / 20 + m[2]))..blendMode = BlendMode.plus);
     }
     c.restore();
     c.drawRect(
-        const Rect.fromLTWH(0, 0, kW, kH),
+        Rect.fromLTWH(0, 0, vw, kH),
         Paint()
-          ..shader = ui.Gradient.radial(const Offset(kW / 2, kH / 2), kH * .78, const [Color(0x00000000), Color(0xC0000000)], const [.35, 1]));
+          ..shader = ui.Gradient.radial(Offset(vw / 2, kH / 2), math.sqrt(vw * vw + kH * kH) * .5, const [Color(0x00000000), Color(0xC0000000)], const [.45, 1]));
     if (e.flash > 0) {
-      c.drawRect(const Rect.fromLTWH(0, 0, kW, kH), _fill(Color.fromRGBO(255, 210, 120, e.flash * .02)));
+      c.drawRect(Rect.fromLTWH(0, 0, vw, kH), _fill(Color.fromRGBO(255, 210, 120, e.flash * .02)));
     }
     _hud(c);
   }
@@ -152,8 +155,9 @@ class GamePainter extends CustomPainter {
     final src = Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble());
     final h = img.height / Art.ps;
     final p = Paint()..filterQuality = FilterQuality.low;
-    c.drawImageRect(img, src, Rect.fromLTWH(o, y, kW, h), p);
-    c.drawImageRect(img, src, Rect.fromLTWH(o + kW, y, kW, h), p);
+    for (double x = o; x < vw; x += kW) {
+      c.drawImageRect(img, src, Rect.fromLTWH(x, y, kW + 0.5, h), p);
+    }
   }
 
   void _props(Canvas c, int layer) {
@@ -164,7 +168,7 @@ class GamePainter extends CustomPainter {
       final img = a.sp[o.dark ? '${o.k}_d' : o.k]!;
       final w = o.h * img.width / img.height;
       final px = o.x - cam;
-      if (px + w < 0 || px - w > kW) continue;
+      if (px + w < 0 || px - w > vw) continue;
       if (o.glw != null) {
         glow(c, px, kFloorY - o.h * .5, o.h * 1.2, o.glw!, .30 + math.sin(e.t / 40 + o.x) * .08, add: true);
       }
@@ -176,7 +180,7 @@ class GamePainter extends CustomPainter {
     final cam = e.cam, t = e.t;
     for (final s in Level.solids) {
       final px = (s.x - cam).roundToDouble();
-      if (px > kW || px + s.w < 0 || (s.h > 100 && s.y < 10)) continue;
+      if (px > vw || px + s.w < 0 || (s.h > 100 && s.y < 10)) continue;
       c.save();
       c.translate(px, s.y);
       c.drawRect(Rect.fromLTWH(0, 0, s.w, s.h), a.gtPaint);
@@ -184,7 +188,7 @@ class GamePainter extends CustomPainter {
       c.restore();
       c.drawRect(Rect.fromLTWH(px, s.y, s.w, 2), _fill(const Color(0xFF3A6AA6)));
       c.drawRect(Rect.fromLTWH(px, s.y + 2, s.w, 1), _fill(const Color(0x4078B4FF)));
-      final lo = math.max(0.0, -px), hi = math.min(s.w, kW - px);
+      final lo = math.max(0.0, -px), hi = math.min(s.w, vw - px);
       final g1 = Path(), g2 = Path(), g3 = Path();
       for (double i = lo - (lo % 2); i < hi; i += 2) {
         final hv = hh(s.x + i), bh = hv * 4 + 1, sw = math.sin(t / 35 + i * .3) * .7;
@@ -213,7 +217,7 @@ class GamePainter extends CustomPainter {
     for (final m in e.embers) {
       if (m.taken) continue;
       final x = m.x - cam;
-      if (x < -20 || x > kW + 20) continue;
+      if (x < -20 || x > vw + 20) continue;
       final y = m.y + math.sin(t / 18 + m.x) * 3;
       glow(c, x, y, 20, const C3(255, 170, 70), .55, add: true);
       c.drawCircle(Offset(x, y), 3.6, Paint()..shader = ui.Gradient.radial(Offset(x, y), 4, const [Color(0xFFFFFFFF), Color(0xFFFFC85A)]));
@@ -226,7 +230,7 @@ class GamePainter extends CustomPainter {
   void _goal(Canvas c) {
     final t = e.t;
     final gx = Level.goalX - e.cam, gy = Level.goalY;
-    if (gx < -150 || gx > kW + 150) return;
+    if (gx < -150 || gx > vw + 150) return;
     final pulse = .7 + math.sin(t / 20) * .15;
     glow(c, gx, gy + 20, 110, const C3(190, 120, 255), pulse, add: true);
     glow(c, gx, gy + 25, 60, const C3(230, 200, 255), .6, add: true);
@@ -248,7 +252,7 @@ class GamePainter extends CustomPainter {
   void _enemy(Canvas c, Enemy en) {
     final t = e.t;
     final ex = en.x - e.cam;
-    if (ex < -40 || ex > kW + 40) return;
+    if (ex < -40 || ex > vw + 40) return;
     final flashed = en.hit > 0 && en.kb > 0;
     final body = _fill(flashed ? Colors.white : const Color(0xFF2B1B2E));
     if (en.flying) {
@@ -289,10 +293,10 @@ class GamePainter extends CustomPainter {
 
   void _lighting(Canvas c) {
     final cam = e.cam, t = e.t;
-    c.saveLayer(const Rect.fromLTWH(-12, -12, kW + 24, kH + 24), Paint());
-    c.drawRect(const Rect.fromLTWH(-12, -12, kW + 24, kH + 24), _fill(const Color(0x94030610)));
+    c.saveLayer(Rect.fromLTWH(-12, -12, vw + 24, kH + 24), Paint());
+    c.drawRect(Rect.fromLTWH(-12, -12, vw + 24, kH + 24), _fill(const Color(0x94030610)));
     void hole(double x, double y, double r, double s) {
-      if (x < -r || x > kW + r) return;
+      if (x < -r || x > vw + r) return;
       c.drawCircle(Offset(x, y), r, Paint()..blendMode = BlendMode.dstOut..shader = ui.Gradient.radial(Offset(x, y), r, [Color.fromRGBO(255, 255, 255, s), const Color(0x00FFFFFF)]));
     }
     hole(e.p.x - cam + 7, e.p.y + 12, 200 + math.sin(t / 12) * 6, .97);
@@ -314,7 +318,7 @@ class GamePainter extends CustomPainter {
     final cam = e.cam, t = e.t;
     for (final o in a.props) {
       final px = o.x - cam;
-      if (px < -40 || px > kW + 40) continue;
+      if (px < -40 || px > vw + 40) continue;
       if (o.k == 'torch') {
         final fy = kFloorY - o.h + 2;
         final fl = math.sin(t / 3 + o.x) * 1.2;
@@ -406,8 +410,8 @@ class GamePainter extends CustomPainter {
     }
     final txt = '${e.collected}/${e.totalEmbers}';
     final tp = TextPainter(text: TextSpan(text: txt, style: const TextStyle(color: Color(0xFFFFE3A8), fontSize: 14, fontWeight: FontWeight.w800)), textDirection: TextDirection.ltr)..layout();
-    tp.paint(c, Offset(kW - 14 - tp.width, 15));
-    final ix = kW - 14 - tp.width - 14, iy = 24 + math.sin(t / 15) * 1.0;
+    tp.paint(c, Offset(vw - 14 - tp.width, 15));
+    final ix = vw - 14 - tp.width - 14, iy = 24 + math.sin(t / 15) * 1.0;
     glow(c, ix, iy, 12, const C3(255, 170, 70), .6, add: true);
     c.drawCircle(Offset(ix, iy), 4.2, _fill(const Color(0xFFFFD27A)));
     // اسم المنطقة

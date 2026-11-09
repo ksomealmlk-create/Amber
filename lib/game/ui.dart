@@ -17,6 +17,7 @@ class GameScreen extends StatefulWidget {
 class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateMixin {
   final GameEngine eng = GameEngine();
   Art? art;
+  GamePainter? painter;
   late final Ticker _ticker;
 
   @override
@@ -25,7 +26,10 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     _ticker = createTicker(eng.tick);
     Art.load().then((a) {
       if (!mounted) return;
-      setState(() => art = a);
+      setState(() {
+        art = a;
+        painter = GamePainter(eng, a);
+      });
       _ticker.start();
     });
   }
@@ -50,6 +54,33 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
         ),
       );
     }
+    final land = MediaQuery.of(context).orientation == Orientation.landscape;
+    if (land) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF05070D),
+        body: Stack(children: [
+          Positioned.fill(child: CustomPaint(painter: painter)),
+          Positioned.fill(child: AnimatedBuilder(animation: eng, builder: (_, __) => _overlay())),
+          Positioned.fill(
+            child: SafeArea(
+              child: Directionality(
+                textDirection: TextDirection.ltr,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 14),
+                  child: Opacity(
+                    opacity: .85,
+                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      _DPad(eng),
+                      _actions(),
+                    ]),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ]),
+      );
+    }
     return Scaffold(
       backgroundColor: const Color(0xFF05070D),
       body: SafeArea(
@@ -59,7 +90,7 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
               child: AspectRatio(
                 aspectRatio: kW / kH,
                 child: Stack(children: [
-                  Positioned.fill(child: CustomPaint(painter: GamePainter(eng, art!))),
+                  Positioned.fill(child: CustomPaint(painter: painter)),
                   Positioned.fill(child: AnimatedBuilder(animation: eng, builder: (_, __) => _overlay())),
                 ]),
               ),
@@ -93,8 +124,11 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
           const SizedBox(height: 18),
           _btn('ابدأ', eng.start),
           const SizedBox(height: 14),
-          const Text('مجسمات CC0: Avramania · Virtual Museums of Małopolska · Galway3D · Cleveland Museum of Art',
-              textAlign: TextAlign.center, style: TextStyle(color: Color(0x66CFE4FF), fontSize: 10)),
+          const SizedBox(
+            width: 300,
+            child: Text('مجسمات CC0: Avramania · Virtual Museums of Małopolska · Galway3D · Cleveland Museum of Art',
+                textAlign: TextAlign.center, style: TextStyle(color: Color(0x66CFE4FF), fontSize: 10)),
+          ),
         ]);
       case Phase.dead:
         return GestureDetector(
@@ -144,7 +178,7 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
         gradient: RadialGradient(radius: 1.0, colors: [Color(0xB0050810), Color(0xE6020308)]),
       ),
       padding: const EdgeInsets.all(22),
-      child: Center(child: Column(mainAxisSize: MainAxisSize.min, children: children)),
+      child: Center(child: FittedBox(fit: BoxFit.scaleDown, child: Column(mainAxisSize: MainAxisSize.min, children: children))),
     );
   }
 
@@ -173,6 +207,16 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
     );
   }
 
+  Widget _actions() {
+    return Row(children: [
+      _PadBtn(icon: Icons.keyboard_double_arrow_right_rounded, onChange: (v) => eng.dash = v, size: 60),
+      const SizedBox(width: 10),
+      _PadBtn(icon: Icons.local_fire_department_rounded, onChange: (v) => eng.atk = v, size: 66, accent: true),
+      const SizedBox(width: 10),
+      _PadBtn(icon: Icons.keyboard_arrow_up_rounded, onChange: (v) => eng.jump = v, size: 74),
+    ]);
+  }
+
   Widget _controls() {
     return Directionality(
       textDirection: TextDirection.ltr,
@@ -180,13 +224,7 @@ class _GameScreenState extends State<GameScreen> with SingleTickerProviderStateM
         padding: const EdgeInsets.fromLTRB(14, 6, 14, 14),
         child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.end, children: [
           _DPad(eng),
-          Row(children: [
-            _PadBtn(icon: Icons.keyboard_double_arrow_right_rounded, onChange: (v) => eng.dash = v, size: 60),
-            const SizedBox(width: 10),
-            _PadBtn(icon: Icons.local_fire_department_rounded, onChange: (v) => eng.atk = v, size: 66, accent: true),
-            const SizedBox(width: 10),
-            _PadBtn(icon: Icons.keyboard_arrow_up_rounded, onChange: (v) => eng.jump = v, size: 74),
-          ]),
+          _actions(),
         ]),
       ),
     );

@@ -79,9 +79,9 @@ class Strip {
   Strip(this.tiles, this.w, this.h);
   static final Paint _p = Paint()..filterQuality = FilterQuality.medium;
 
-  void draw(Canvas c, double sx, double y) {
-    final x0 = math.max(0.0, math.min(sx, w - kW));
-    final x1 = x0 + kW;
+  void draw(Canvas c, double sx, double y, double vw) {
+    final x0 = math.max(0.0, math.min(sx, w - vw));
+    final x1 = x0 + vw;
     final i0 = (x0 / tw).floor();
     final i1 = ((x1 - 0.001) / tw).floor();
     for (int i = i0; i <= i1; i++) {
@@ -104,7 +104,7 @@ class Art {
   final List<Prop> props = [];
   static const double ps = 2;
 
-  static double lw(double f) => (kLW * f).ceilToDouble() + kW + 4;
+  static double lw(double f) => (kLW * f).ceilToDouble() + kMaxView + 4;
 
   static Future<Art> load() async {
     final a = Art();

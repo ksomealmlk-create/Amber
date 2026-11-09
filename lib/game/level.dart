@@ -3,6 +3,7 @@
 const double kW = 360;
 const double kH = 500;
 const double kLW = 2450;
+const double kMaxView = 1300; // أقصى عرض مرئي (للوضع الأفقي)
 const double kFloorY = 440;
 
 class Box {

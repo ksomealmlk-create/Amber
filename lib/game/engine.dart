@@ -50,6 +50,7 @@ class GameEngine extends ChangeNotifier {
   List<Ember> embers = [];
   List<Part> parts = [];
   double cam = 0;
+  double vw = kW; // العرض المرئي الحالي
   int t = 0, shake = 0, cp = 30, deadT = 0, playFrames = 0, kills = 0, collected = 0, flash = 0;
 
   double _acc = 0, _last = 0;
@@ -126,7 +127,7 @@ class GameEngine extends ChangeNotifier {
       return;
     }
     if (phase == Phase.won) {
-      cam += ((Level.goalX - kW / 2 - cam)) * 0.03;
+      cam += ((Level.goalX - vw / 2 - cam)) * 0.03;
       if (t % 3 == 0) {
         _spark(Level.goalX + (rng.nextDouble() - .5) * 40, Level.goalY + 20 + (rng.nextDouble() - .5) * 80, 1, const Color(0xFFE6C8FF), add: true);
       }
@@ -284,7 +285,7 @@ class GameEngine extends ChangeNotifier {
       HapticFeedback.heavyImpact();
       notifyListeners();
     }
-    cam += ((math.max(0.0, math.min(kLW - kW, p.x - kW / 2 + p.f * 30))) - cam) * .1;
+    cam += ((math.max(0.0, math.min(kLW - vw, p.x - vw / 2 + p.f * 30))) - cam) * .1;
   }
 
   void _die() {
