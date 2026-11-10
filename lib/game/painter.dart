@@ -344,11 +344,12 @@ class GamePainter extends CustomPainter {
     final px = p.x - e.cam, py = p.y;
     if (e.phase == Phase.dead) return;
     if (p.inv > 0 && t % 6 < 3) return;
-    const ch = 36.0;
+    const ch = 39.3;
     const k = ch / 448.0;
-    const dw = 179 * k;
-    final hipP = Offset(-dw / 2 + 93.3 * k, -ch + 277.8 * k);
-    final shP = Offset(-dw / 2 + 86.8 * k, -ch + 157.4 * k);
+    const dw = 188 * k;
+    Offset pv(double x, double y) => Offset(-dw / 2 + x * k, -ch + y * k);
+    final shN = pv(116.7, 164.3), shF = pv(36.3, 164.3);
+    final hipN = pv(85.3, 257.6), hipF = pv(67.6, 257.6);
     final paint = Paint()..filterQuality = FilterQuality.medium;
     void layer(String n, {double ang = 0, Offset piv = Offset.zero, double dy = 0}) {
       final img = a.sp[n]!;
@@ -369,29 +370,27 @@ class GamePainter extends CustomPainter {
     c.rotate(p.lean);
     // ظل خفيف تحت القدمين
     c.drawOval(Rect.fromCenter(center: const Offset(0, 0.5), width: 14, height: 3), _fill(const Color(0x55000000)));
-    layer('hornet_armF', ang: p.aF, piv: shP, dy: p.bob);
-    layer('hornet_legF', ang: p.lF, piv: hipP);
-    layer('hornet_legN', ang: p.lN, piv: hipP);
-    layer('hornet_body', dy: p.bob);
-    layer('hornet_armN', ang: p.aN, piv: shP, dy: p.bob);
+    layer('hero_armF', ang: p.aF, piv: shF, dy: p.bob);
+    layer('hero_legF', ang: p.lF, piv: hipF);
+    layer('hero_legN', ang: p.lN, piv: hipN);
+    layer('hero_body', dy: p.bob);
+    layer('hero_armN', ang: p.aN, piv: shN, dy: p.bob);
+    layer('hero_weapon', ang: p.aN, piv: shN, dy: p.bob);
     // الفانوس في اليد
-    final hand = Offset(shP.dx - math.sin(p.aN) * 5.5, shP.dy + p.bob + math.cos(p.aN) * 5.5);
+    final hand = Offset(shF.dx - math.sin(p.aF) * 12.0, shF.dy + p.bob + math.cos(p.aF) * 12.0);
     final lp = hand + const Offset(1.6, 1.8);
     c.drawLine(hand, lp, Paint()..color = const Color(0xFF1A1424)..strokeWidth = 0.8);
     glow(c, lp.dx, lp.dy + 1, 10, const C3(255, 190, 90), .9, add: true);
     c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: lp + const Offset(0, 1.5), width: 3.4, height: 4.2), const Radius.circular(1)), _fill(const Color(0xFFFFB347)));
     c.drawCircle(lp + const Offset(0, 1.5), 0.9, _fill(const Color(0xFFFFF4D2)));
     c.restore();
-    // ضربة السيف
-    if (p.atk > 3 && p.atk < 13) {
-      final k2 = (13 - p.atk) / 10;
-      c.save();
-      c.translate(px + 7, py + 12);
-      c.scale(p.f.toDouble(), 1);
-      final r = Rect.fromCircle(center: const Offset(4, 0), radius: 22);
-      c.drawArc(r, -1.1 + k2 * .6, 2.2 - k2 * .8, false, Paint()..color = Color.fromRGBO(255, 230, 170, 1 - k2 * .6)..style = PaintingStyle.stroke..strokeWidth = 4.5..strokeCap = StrokeCap.round..blendMode = BlendMode.plus);
-      c.drawArc(r, -1.1 + k2 * .6, 2.2 - k2 * .8, false, Paint()..color = Color.fromRGBO(255, 170, 80, .6 * (1 - k2))..style = PaintingStyle.stroke..strokeWidth = 9..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4)..blendMode = BlendMode.plus);
-      c.restore();
+    // موجة الصدمة عند ضرب المطرقة
+    if (p.atk > 7 && p.atk < 13) {
+      final k2 = (13 - p.atk) / 6;
+      final ix = px + 7 + p.f * 24;
+      glow(c, ix, py + 20, 14 + k2 * 22, const C3(150, 230, 255), .9 * (1 - k2), add: true);
+      c.drawOval(Rect.fromCenter(center: Offset(ix, py + 21), width: 20 + k2 * 50, height: 6 + k2 * 10),
+          Paint()..color = Color.fromRGBO(190, 240, 255, .8 * (1 - k2))..style = PaintingStyle.stroke..strokeWidth = 1.5..blendMode = BlendMode.plus);
     }
   }
 

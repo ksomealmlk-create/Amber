@@ -147,7 +147,7 @@ class GameEngine extends ChangeNotifier {
     p.pj = jump;
     if (p.jb > 0) p.jb--;
     if (atk && !p.pa && p.atk <= 0) {
-      p.atk = 14;
+      p.atk = 26;
       for (final e in en) {
         e.hit = 0;
       }
@@ -207,6 +207,11 @@ class GameEngine extends ChangeNotifier {
       p.anim += p.vx.abs() * 0.12;
       if (t % 9 == 0) _dust(p.x + 7, p.y + 22, 1);
     }
+    if (p.atk == 12) {
+      _spark(p.x + 7 + p.f * 24, p.y + 18, 18, const Color(0xFFBDEFFF), add: true);
+      shake = 5;
+      HapticFeedback.lightImpact();
+    }
     if (p.atk > 0) p.atk--;
 
     for (final s in Level.grounds) {
@@ -229,7 +234,7 @@ class GameEngine extends ChangeNotifier {
       }
     }
 
-    final ab = Box(p.f > 0 ? p.x + p.w : p.x - 30, p.y - 2, 30, 26);
+    final ab = Box(p.f > 0 ? p.x + p.w : p.x - 36, p.y - 8, 36, 36);
     for (final e in en) {
       if (e.hp <= 0) continue;
       if (e.flying) e.y = e.baseY + math.sin(t / 25 + e.ph) * 10;
@@ -241,9 +246,9 @@ class GameEngine extends ChangeNotifier {
         if (e.x < e.minX) e.d = 1;
         if (e.x + e.w > e.maxX) e.d = -1;
       }
-      if (p.atk > 3 && p.atk < 12 && e.hit == 0 && ab.hits(e)) {
+      if (p.atk > 8 && p.atk < 17 && e.hit == 0 && ab.hits(e)) {
         e.hit = 1;
-        e.hp--;
+        e.hp -= 2;
         e.kb = 8;
         _spark(e.x + 9, e.y + 6, 10, const Color(0xFFFFB347), add: true);
         shake = 4;
@@ -318,16 +323,24 @@ class GameEngine extends ChangeNotifier {
       aN = 0.08 * br; aF = -0.08 * br;
       bob = br * 0.25;
     }
+    double kn = 0.3;
     if (p.atk > 0) {
-      aN = -1.6;
-      if (p.atk > 3) lean = 0.15;
+      // ضربة المطرقة: رفع ثم هبوط سريع ثم استرجاع
+      kn = 0.5;
+      if (p.atk > 16) {
+        aN = -3.2; aF = -1.2; lean = -0.12;
+      } else if (p.atk > 8) {
+        aN = -0.9; aF = 0.5; lean = 0.25;
+      } else {
+        aN = -0.3; lean = 0.1;
+      }
     }
     const k = 0.3;
     p.lN += (lN - p.lN) * k;
     p.lF += (lF - p.lF) * k;
-    p.aN += (aN - p.aN) * k;
+    p.aN += (aN - p.aN) * kn;
     p.aF += (aF - p.aF) * k;
-    p.lean += (lean - p.lean) * k;
+    p.lean += (lean - p.lean) * kn;
     p.bob += (bob - p.bob) * k;
   }
 
