@@ -25,10 +25,10 @@ class Enemy extends Box {
 
 class Part {
   double x, y, vx, vy, size;
-  int l, max;
+  int l, max, a0;
   Color c;
   bool add;
-  Part(this.x, this.y, this.vx, this.vy, this.l, this.c, this.size, this.add) : max = l;
+  Part(this.x, this.y, this.vx, this.vy, this.l, this.c, this.size, this.add, [this.a0 = 255]) : max = l;
 }
 
 class Ember {
@@ -747,7 +747,7 @@ class GameEngine extends ChangeNotifier {
 
   void _dust(double x, double y, int n) {
     for (int i = 0; i < n; i++) {
-      parts.add(Part(x + (rng.nextDouble() - .5) * 8, y, (rng.nextDouble() - .5) * 1.4, -rng.nextDouble() * .6, 22, const Color(0x889FB8D8), 1.5 + rng.nextDouble() * 1.5, false));
+      parts.add(Part(x + (rng.nextDouble() - .5) * 8, y, (rng.nextDouble() - .5) * 1.4, -rng.nextDouble() * .6, 22, const Color(0xFF9FB8D8), 1.5 + rng.nextDouble() * 1.5, false, 136));
     }
   }
 

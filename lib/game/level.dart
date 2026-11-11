@@ -455,7 +455,7 @@ class LevelFactory {
           x += L;
           break;
         }
-        default: // secret: مسار علوي وصندوق {
+        default: { // مسار علوي سري وصندوق
           final L = 320 + r() * 120;
           ground(x, L);
           plats.add(Box(x + 60, 380, 80, 14));

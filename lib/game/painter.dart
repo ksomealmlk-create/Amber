@@ -144,7 +144,7 @@ class GamePainter extends CustomPainter {
     for (final q in e.parts) {
       final k = q.l / q.max;
       final col = q.c;
-      final p = Paint()..color = col.withAlpha((col.alpha * k).round().clamp(0, 255).toInt());
+      final p = Paint()..color = col.withAlpha((q.a0 * k).round());
       if (q.add) p.blendMode = BlendMode.plus;
       c.drawCircle(Offset(q.x - cam, q.y), q.size * (.4 + .6 * k), p);
     }
@@ -287,7 +287,7 @@ class GamePainter extends CustomPainter {
         path.close();
         tips.addOval(Rect.fromCenter(center: Offset(bx + (h.w / n) * .5 + (hv - .5) * 3, h.y + h.h - hgt), width: 2.6, height: 2.6));
       }
-      glow(c, px + h.w / 2, h.y + 6, h.w * .9, C3(th.hazB.red, th.hazB.green, th.hazB.blue), .18 + math.sin(t / 14 + h.x) * .06, add: true);
+      glow(c, px + h.w / 2, h.y + 6, h.w * .9, th.wall == WallStyle.trunks ? const C3(255, 90, 74) : const C3(140, 200, 255), .18 + math.sin(t / 14 + h.x) * .06, add: true);
       c.drawPath(path, _fill(th.hazA));
       c.drawPath(path, Paint()..color = const Color(0x55000000)..style = PaintingStyle.stroke..strokeWidth = .8);
       c.drawPath(tips, Paint()..color = th.hazB..blendMode = BlendMode.plus);
@@ -469,9 +469,9 @@ class GamePainter extends CustomPainter {
     c.drawOval(Rect.fromCenter(center: Offset(abX, cy - 4), width: 74, height: 56),
         Paint()..shader = flashed ? null : ui.Gradient.radial(Offset(abX - 8, cy - 18), 44, [mid, dark]));
     if (flashed) c.drawOval(Rect.fromCenter(center: Offset(abX, cy - 4), width: 74, height: 56), _fill(Colors.white));
-    final markC = stun ? const Color(0xFFFFE27A) : (b.enraged ? const Color(0xFFFF3A2A) : const Color(0xFFB84AFF));
+    final markC = stun ? const C3(255, 226, 122) : (b.enraged ? const C3(255, 58, 42) : const C3(184, 74, 255));
     final markA = stun ? .9 + math.sin(t / 3) * .1 : .55;
-    glow(c, abX, cy - 6, stun ? 34 : 20, C3(markC.red, markC.green, markC.blue), markA, add: true);
+    glow(c, abX, cy - 6, stun ? 34 : 20, markC, markA, add: true);
     final mark = Path()
       ..moveTo(abX - 8, cy - 18)
       ..lineTo(abX + 8, cy - 18)
@@ -480,7 +480,7 @@ class GamePainter extends CustomPainter {
       ..lineTo(abX - 8, cy + 6)
       ..lineTo(abX, cy - 6)
       ..close();
-    c.drawPath(mark, Paint()..color = markC.withAlpha((markA * 255).round().clamp(0, 255).toInt()));
+    c.drawPath(mark, Paint()..color = markC.a(markA > 1 ? 1.0 : markA));
     final hx = cx + face * 26;
     c.drawOval(Rect.fromCenter(center: Offset(hx, cy + 2), width: 40, height: 34), _fill(flashed ? Colors.white : const Color(0xFF2A1A3A)));
     for (int i = 0; i < 4; i++) {
