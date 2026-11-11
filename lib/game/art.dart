@@ -108,6 +108,18 @@ class Sprites {
     for (final n in const ['hero_body', 'hero_armN', 'hero_armF', 'hero_legN', 'hero_legF', 'hero_weapon']) {
       await one(n, n);
     }
+    // نماذج خارجية من Quaternius؛ تم تحويلها إلى PNG شفافة لتناسب محرك الرسم ثنائي الأبعاد.
+    const worldModels = [
+      'tree_common', 'tree_twisted', 'tree_dead', 'tree_pine',
+      'mushroom_model', 'mushroom_shelf', 'rock_model', 'rock_model2',
+      'bush_model', 'fern_model', 'plant_model', 'plant_purple',
+      'flowers_model', 'pebble_model'
+    ];
+    for (final n in worldModels) {
+      final bd = await rootBundle.load('assets/world_models/$n.png');
+      final codec = await ui.instantiateImageCodec(bd.buffer.asUint8List());
+      sp[n] = (await codec.getNextFrame()).image;
+    }
     return sp;
   }
 }
@@ -603,47 +615,164 @@ class Art {
     for (final x in const [300.0, 760.0, 1310.0, 1900.0, 2280.0]) {
       add('skull', x, 13, layer: 1);
     }
+    // حتى المرحلة الكلاسيكية الأولى تستفيد من حزمة النماذج الخارجية.
+    for (final s in cfg.grounds) {
+      final n = (s.w / 420).floor();
+      for (int i = 0; i < n; i++) {
+        add(i.isEven ? 'rock_model' : 'rock_model2',
+            s.x + 70 + r() * math.max(1.0, s.w - 140), 48 + r() * 24);
+      }
+      if (s.w > 260) {
+        add('fern_model', s.x + 120 + r() * (s.w - 180), 42, layer: 1);
+      }
+    }
   }
 
-  /// ديكور المراحل المولَّدة: حسب الثيم وبذرة المرحلة
+  /// ديكور خاص بكل عالم. العناصر تُركّب من مجسمات PNG الموجودة في assets/sprites
+  /// مع توزيع ثابت حسب بذرة المرحلة حتى يبقى شكل العالم متناسقاً عند إعادة اللعب.
   void _genProps() {
     final r = mkr(cfg.seed * 977 + 3);
-    final forest = th.wall == WallStyle.trunks;
-    void add(String k, double x, double h, {int layer = 0, bool dark = false, C3? g}) => props.add(Prop(k, x, h, layer, dark, g));
+    final world = cfg.world;
+    void add(String k, double x, double h,
+        {int layer = 0, bool dark = false, C3? g}) =>
+        props.add(Prop(k, x, h, layer, dark, g));
+
+    // لكل عالم مجموعة عناصر وهوية واضحة، وليس مجرد تبديل لون الخلفية.
+    late List<String> tall;
+    late List<String> ground;
+    late List<String> detail;
+    late C3 glowColor;
+    double tallScale = 1;
+    switch (world) {
+      case 1: // المغارة المنسية
+        tall = ['rock_model', 'rock_model2', 'rock_model'];
+        ground = ['pebble_model', 'rock_model2'];
+        detail = ['fern_model', 'plant_purple', 'torch'];
+        glowColor = const C3(120, 205, 255);
+        break;
+      case 2: // الغابة الملعونة
+        tall = ['tree_twisted', 'tree_common', 'tree_pine'];
+        ground = ['bush_model', 'fern_model', 'pebble_model'];
+        detail = ['flowers_model', 'plant_model', 'fern_model'];
+        glowColor = const C3(120, 255, 150);
+        break;
+      case 3: // كهف الفطر السام
+        tall = ['mushroom_model', 'mushroom_shelf', 'mushroom_model'];
+        ground = ['plant_purple', 'mushroom_model', 'pebble_model'];
+        detail = ['mushroom_shelf', 'plant_purple', 'fern_model'];
+        glowColor = const C3(210, 110, 255);
+        tallScale = 1.25;
+        break;
+      case 4: // قلعة الهياكل
+        tall = ['tree_dead', 'rock_model', 'tree_twisted'];
+        ground = ['rock_model2', 'pebble_model'];
+        detail = ['tree_dead', 'fern_model', 'skull'];
+        glowColor = const C3(190, 205, 220);
+        break;
+      case 5: // مملكة الحمم
+        tall = ['rock_model', 'rock_model2', 'tree_dead'];
+        ground = ['rock_model2', 'pebble_model'];
+        detail = ['plant_purple', 'tree_dead', 'torch'];
+        glowColor = const C3(255, 105, 35);
+        break;
+      case 6: // مملكة الجليد
+        tall = ['tree_pine', 'rock_model2', 'tree_common'];
+        ground = ['pebble_model', 'rock_model'];
+        detail = ['fern_model', 'flowers_model', 'lantern'];
+        glowColor = const C3(125, 225, 255);
+        break;
+      case 7: // المقبرة القديمة
+        tall = ['tree_dead', 'tree_twisted', 'rock_model'];
+        ground = ['pebble_model', 'bush_model'];
+        detail = ['tree_dead', 'fern_model', 'skull'];
+        glowColor = const C3(160, 190, 155);
+        break;
+      case 8: // معبد الأسرار
+        tall = ['tree_common', 'rock_model', 'tree_pine'];
+        ground = ['rock_model2', 'pebble_model'];
+        detail = ['flowers_model', 'plant_model', 'torch'];
+        glowColor = const C3(255, 210, 110);
+        tallScale = 1.12;
+        break;
+      case 9: // منجم الكريستال
+        tall = ['rock_model', 'rock_model2', 'rock_model'];
+        ground = ['pebble_model', 'rock_model2'];
+        detail = ['plant_purple', 'fern_model', 'lantern'];
+        glowColor = const C3(80, 235, 255);
+        tallScale = 1.18;
+        break;
+      case 10: // قلعة الظلام
+        tall = ['tree_dead', 'tree_twisted', 'rock_model'];
+        ground = ['rock_model2', 'pebble_model'];
+        detail = ['tree_dead', 'bush_model', 'torch'];
+        glowColor = const C3(175, 125, 245);
+        tallScale = 1.15;
+        break;
+      default: // العالم الأخير
+        tall = ['tree_twisted', 'tree_pine', 'mushroom_shelf'];
+        ground = ['plant_purple', 'rock_model', 'pebble_model'];
+        detail = ['flowers_model', 'mushroom_model', 'plant_model'];
+        glowColor = const C3(255, 105, 205);
+        tallScale = 1.2;
+    }
+
     for (final s in cfg.grounds) {
       final w = s.w;
-      if (w < 120) continue;
-      double px(double m) => s.x + m + r() * (w - 2 * m);
-      if (!forest) {
-        final nf = (w / 380).floor();
-        for (int i = 0; i < nf; i++) {
-          if (r() < .6) {
-            add('pillar', px(60), 200 + r() * 40, dark: true);
-          } else {
-            add('statue', px(80), 110 + r() * 30, dark: true);
-          }
-        }
-        if (r() < .35) add('bars', px(80), 90, dark: true);
-        final q = (w / 200).floor();
-        for (int i = 0; i < q; i++) {
-          add('quartz', px(40), 30 + r() * 28, g: const C3(120, 230, 255));
-        }
-      } else {
-        final q = (w / 220).floor();
-        for (int i = 0; i < q; i++) {
-          add('quartz', px(40), 26 + r() * 24, g: const C3(120, 255, 170));
-        }
-        if (r() < .4) add('statue', px(90), 105, dark: true);
+      if (w < 105) continue;
+      double px(double margin) => s.x + margin + r() * math.max(1.0, w - 2 * margin);
+      final count = (w / (world == 2 || world == 3 || world == 9 ? 260 : 340)).floor();
+      for (int i = 0; i < count; i++) {
+        final k = tall[(r() * tall.length).floor()];
+        final h = switch (k) {
+          'tree_common' || 'tree_twisted' || 'tree_pine' || 'tree_dead' => 150 + r() * 75,
+          'mushroom_model' || 'mushroom_shelf' => 70 + r() * 65,
+          'rock_model' || 'rock_model2' => 72 + r() * 55,
+          'pillar' => 175 + r() * 65,
+          'statue' => 105 + r() * 55,
+          'vault' => 145 + r() * 55,
+          'mush' => 55 + r() * 65,
+          'quartz' => 65 + r() * 75,
+          _ => 72 + r() * 50,
+        } * tallScale;
+        final legacyDark = const ['pillar', 'statue', 'vault', 'skeleton_a', 'skeleton_b'].contains(k);
+        add(k, px(55), h, dark: legacyDark,
+            g: (k == 'mush' || k == 'quartz') ? glowColor : null);
       }
-      final m = (w / (forest ? 90 : 120)).floor();
-      for (int i = 0; i < m; i++) {
-        add('mush', px(30), 12 + r() * (forest ? 30 : 22), layer: 1, g: forest ? const C3(150, 255, 150) : const C3(255, 130, 90));
+      final groundCount = (w / (world == 3 || world == 9 ? 115 : 175)).floor();
+      for (int i = 0; i < groundCount; i++) {
+        final k = ground[(r() * ground.length).floor()];
+        final h = (k == 'pebble_model' || k == 'rock_model' || k == 'rock_model2')
+            ? 24 + r() * 34
+            : (k == 'mushroom_model' || k == 'mushroom_shelf')
+                ? 28 + r() * 38
+                : 30 + r() * 30;
+        add(k, px(25), h, layer: 0, dark: k == 'corner',
+            g: const ['quartz', 'mush'].contains(k) ? glowColor : null);
       }
-      if (w > 220) add('torch', px(40), 72, layer: 1, g: const C3(255, 170, 70));
-      if (w > 260 && r() < .6) add('lantern', px(40), 44, layer: 1, g: const C3(255, 190, 90));
-      if (r() < .5) add('spider', px(40), 70, layer: 1, g: forest ? const C3(255, 90, 160) : const C3(255, 80, 90));
-      if (r() < .4) add('skull', px(30), 13, layer: 1);
-      if (w > 360 && r() < .25) add(r() < .5 ? 'skeleton_a' : 'skeleton_b', px(60), 58, layer: 1);
+      final detailCount = (w / 260).floor();
+      for (int i = 0; i < detailCount; i++) {
+        final k = detail[(r() * detail.length).floor()];
+        final h = switch (k) {
+          'torch' => 66 + r() * 12,
+          'lantern' => 38 + r() * 12,
+          'spider' => 48 + r() * 28,
+          'skeleton_a' || 'skeleton_b' => 48 + r() * 22,
+          'tree_dead' => 100 + r() * 45,
+          'mushroom_model' || 'mushroom_shelf' => 30 + r() * 26,
+          'flowers_model' || 'fern_model' || 'plant_model' || 'plant_purple' => 28 + r() * 30,
+          _ => 14 + r() * 14,
+        };
+        add(k, px(25), h, layer: 1, g: glowColor);
+      }
+      // لمسات معمارية إضافية تختلف حسب العالم.
+      if (w > 430 && (world == 1 || world == 4 || world == 8 || world == 10)) {
+        add(world == 10 ? 'vault' : 'bars', px(90), world == 10 ? 155 : 88,
+            dark: true);
+      }
+      if (w > 500 && (world == 4 || world == 7 || world == 11)) {
+        add(world == 7 ? 'skeleton_b' : 'skeleton_a', px(70), 62,
+            layer: 1, dark: true);
+      }
     }
   }
 }
