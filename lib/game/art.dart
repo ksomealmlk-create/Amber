@@ -5,20 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'level.dart';
 
-class C3 {
-  final int r, g, b;
-  const C3(this.r, this.g, this.b);
-  Color a(double al) => Color.fromRGBO(r, g, b, al);
-}
-
-double Function() mkr(int seed) {
-  int s = seed;
-  return () {
-    s = (s * 16807) % 2147483647;
-    return s / 2147483647;
-  };
-}
-
 double hh(double n) {
   final v = math.sin(n * 127.1) * 43758.5453;
   return v - v.floorToDouble();
@@ -93,41 +79,75 @@ class Strip {
       c.drawImageRect(tiles[i], src, dst, _p);
     }
   }
+
+  void dispose() {
+    for (final t in tiles) {
+      t.dispose();
+    }
+  }
 }
 
-class Art {
-  late Strip sky, mt1, mt2, wall;
-  late ui.Image fog1, fog2, gt;
-  late Paint gtPaint;
-  final Map<String, ui.Image> sp = {};
-  final List<Arch> arches = [];
-  final List<Prop> props = [];
-  static const double ps = 2;
+/// المجسمات المحوّلة لصور (تُحمَّل مرة واحدة)
+class Sprites {
+  static Future<Map<String, ui.Image>> load() async {
+    final sp = <String, ui.Image>{};
+    Future<void> one(String key, String file) async {
+      final bd = await rootBundle.load('assets/sprites/$file.png');
+      final codec = await ui.instantiateImageCodec(bd.buffer.asUint8List());
+      sp[key] = (await codec.getNextFrame()).image;
+    }
 
-  static double lw(double f) => (kLW * f).ceilToDouble() + kMaxView + 4;
-
-  static Future<Art> load() async {
-    final a = Art();
     const names = [
       'mush', 'quartz', 'corner', 'vault', 'bars', 'skull', 'chest', 'lantern',
       'pillar', 'skeleton_a', 'skeleton_b', 'spider', 'statue', 'torch'
     ];
     for (final n in names) {
-      for (final suf in ['', '_d']) {
-        final bd = await rootBundle.load('assets/sprites/$n$suf.png');
-        final codec = await ui.instantiateImageCodec(bd.buffer.asUint8List());
-        final fr = await codec.getNextFrame();
-        a.sp['$n$suf'] = fr.image;
-      }
+      await one(n, n);
+      await one('${n}_d', '${n}_d');
     }
     for (final n in const ['hero_body', 'hero_armN', 'hero_armF', 'hero_legN', 'hero_legF', 'hero_weapon']) {
-      final bd = await rootBundle.load('assets/sprites/$n.png');
-      final codec = await ui.instantiateImageCodec(bd.buffer.asUint8List());
-      a.sp[n] = (await codec.getNextFrame()).image;
+      await one(n, n);
     }
+    return sp;
+  }
+}
+
+/// خلفيات مرحلة واحدة (تُبنى عند دخول المرحلة وتُحرَّر عند الخروج)
+class Art {
+  final Map<String, ui.Image> sp;
+  final LevelConfig cfg;
+  final WorldTheme th;
+  late Strip sky, mt1, mt2, wall;
+  late ui.Image fog1, fog2, gt, wood;
+  late Paint gtPaint, woodPaint;
+  final List<Arch> arches = [];
+  final List<Prop> props = [];
+  static const double ps = 2;
+
+  Art(this.sp, this.cfg) : th = cfg.theme;
+
+  double lw(double f) => (cfg.length * f).ceilToDouble() + kMaxView + 4;
+
+  static Future<Art> build(Map<String, ui.Image> sp, LevelConfig cfg) async {
+    final a = Art(sp, cfg);
     await a._build();
-    a._buildProps();
+    if (cfg.classic) {
+      a._classicProps();
+    } else {
+      a._genProps();
+    }
     return a;
+  }
+
+  void dispose() {
+    sky.dispose();
+    mt1.dispose();
+    mt2.dispose();
+    wall.dispose();
+    fog1.dispose();
+    fog2.dispose();
+    gt.dispose();
+    wood.dispose();
   }
 
   ui.Picture _rec(void Function(Canvas) f) {
@@ -151,7 +171,9 @@ class Art {
       c.drawPicture(pic);
       final p2 = r.endRecording();
       tiles.add(await p2.toImage(((tww + 2 * Strip.pad) * Strip.ps).ceil(), (h * Strip.ps).ceil()));
+      p2.dispose();
     }
+    pic.dispose();
     return Strip(tiles, w, h);
   }
 
@@ -160,35 +182,39 @@ class Art {
     final c = Canvas(r);
     c.scale(ps, ps);
     f(c);
-    return r.endRecording().toImage((w * ps).ceil(), (h * ps).ceil());
+    final pic = r.endRecording();
+    final img = await pic.toImage((w * ps).ceil(), (h * ps).ceil());
+    pic.dispose();
+    return img;
   }
+
+  Paint _tilePaint(ui.Image img) => Paint()
+    ..shader = ui.ImageShader(img, TileMode.repeated, TileMode.repeated,
+        Float64List.fromList([1 / ps, 0, 0, 0, 0, 1 / ps, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
+        filterQuality: FilterQuality.low);
 
   Future<void> _build() async {
     sky = await _strip(lw(.02), kH, _drawSky);
-    mt1 = await _strip(lw(.08), kH, (c) => _mount(c, lw(.08), 330, 95, const Color(0xFF102650), const Color(0xFF0A1630), const Color(0x5278AAFF), 23, 4));
-    mt2 = await _strip(lw(.18), kH, (c) => _mount(c, lw(.18), 385, 70, const Color(0xFF0C1B38), const Color(0xFF08122A), const Color(0x405A8CE6), 41, 0));
+    mt1 = await _strip(lw(.08), kH, (c) => _mount(c, lw(.08), 330, 95, th.mt1, 23, th.towers1));
+    mt2 = await _strip(lw(.18), kH, (c) => _mount(c, lw(.18), 385, 70, th.mt2, 41, 0));
     fog1 = await _img(kW, 140, (c) => _fog(c, 140, 3, 7, .16));
     fog2 = await _img(kW, 110, (c) => _fog(c, 110, 9, 6, .12));
     gt = await _img(96, 60, _drawGT);
-    gtPaint = Paint()
-      ..shader = ui.ImageShader(gt, TileMode.repeated, TileMode.repeated,
-          Float64List.fromList([1 / ps, 0, 0, 0, 0, 1 / ps, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
-          filterQuality: FilterQuality.low);
-    wall = await _strip(lw(.8), 270, _drawWall);
+    gtPaint = _tilePaint(gt);
+    wood = await _img(64, 14, _drawWood);
+    woodPaint = _tilePaint(wood);
+    wall = await _strip(lw(.8), 270, th.wall == WallStyle.trunks ? _drawTrunks : _drawWall);
   }
 
+  // ---------------- السماء
   void _drawSky(Canvas g) {
     final w = lw(.02);
     final r = mkr(5);
-    g.drawRect(
-        Rect.fromLTWH(0, 0, w, kH),
-        Paint()
-          ..shader = ui.Gradient.linear(const Offset(0, 0), Offset(0, kH),
-              const [Color(0xFF03050B), Color(0xFF0A1630), Color(0xFF12335A), Color(0xFF1B4A6E)], const [0, .45, .75, 1]));
-    // سديم ناعم
+    g.drawRect(Rect.fromLTWH(0, 0, w, kH),
+        Paint()..shader = ui.Gradient.linear(const Offset(0, 0), const Offset(0, kH), th.sky, const [0, .45, .75, 1]));
     for (int i = 0; i < 7; i++) {
       final x = r() * w, y = 40 + r() * 220, rr = 70 + r() * 90;
-      glow(g, x, y, rr, i.isEven ? const C3(90, 70, 170) : const C3(40, 160, 175), .09);
+      glow(g, x, y, rr, i.isEven ? th.blobA : th.blobB, .09);
     }
     for (int i = 0; i < 130; i++) {
       final a = .25 + r() * .7;
@@ -197,17 +223,18 @@ class Art {
           Paint()..color = Color.fromRGBO(200, 225, 255, a));
     }
     const mx = 262.0, my = 118.0;
-    glow(g, mx, my, 150, const C3(170, 200, 255), .42);
-    glow(g, mx, my, 60, const C3(210, 225, 255), .35);
+    glow(g, mx, my, 150, th.moonGlow, .42);
+    glow(g, mx, my, 60, th.moonGlow, .35);
     g.drawCircle(const Offset(mx, my), 22,
-        Paint()..shader = ui.Gradient.radial(const Offset(mx - 6, my - 6), 28, const [Color(0xFFF6FAFF), Color(0xFFC3D4F6)]));
+        Paint()..shader = ui.Gradient.radial(const Offset(mx - 6, my - 6), 28, [th.moonA, th.moonB]));
     final cr = Paint()..color = const Color.fromRGBO(120, 150, 200, .35);
     for (final a in const [[-7, -5, 5], [6, 4, 4], [-2, 9, 3], [9, -8, 3]]) {
       g.drawCircle(Offset(mx + a[0], my + a[1]), a[2].toDouble(), cr);
     }
   }
 
-  void _mount(Canvas g, double w, double base, double amp, Color c0, Color c1, Color rim, int seed, int tw) {
+  void _mount(Canvas g, double w, double base, double amp, List<Color> col, int seed, int tw) {
+    final c0 = col[0], c1 = col[1], rim = col[2];
     final r = mkr(seed);
     final ph = [r() * 6, r() * 6, r() * 6];
     double top(double i) =>
@@ -224,14 +251,14 @@ class Art {
     final win = Paint()..color = const Color.fromRGBO(255, 205, 120, .8);
     for (int i = 0; i < tw; i++) {
       final tx = (60 + r() * (w - 120)).floorToDouble();
-      final th = 22 + r() * 34, tww = 8 + r() * 8;
+      final th2 = 22 + r() * 34, tww = 8 + r() * 8;
       final ty = top(tx) + 4;
-      g.drawRect(Rect.fromLTWH(tx, ty - th, tww, th + 6), fp);
-      g.drawRect(Rect.fromLTWH(tx - 2, ty - th - 3, tww + 4, 3), fp);
-      g.drawRect(Rect.fromLTWH(tx + 1, ty - th - 7, 2, 4), fp);
-      g.drawRect(Rect.fromLTWH(tx + tww - 3, ty - th - 7, 2, 4), fp);
-      g.drawRect(Rect.fromLTWH(tx + (tww / 2).floorToDouble() - 1, ty - th + 8, 2, 3), win);
-      if (r() < .5) g.drawRect(Rect.fromLTWH(tx + 2, ty - th + 18, 2, 3), win);
+      g.drawRect(Rect.fromLTWH(tx, ty - th2, tww, th2 + 6), fp);
+      g.drawRect(Rect.fromLTWH(tx - 2, ty - th2 - 3, tww + 4, 3), fp);
+      g.drawRect(Rect.fromLTWH(tx + 1, ty - th2 - 7, 2, 4), fp);
+      g.drawRect(Rect.fromLTWH(tx + tww - 3, ty - th2 - 7, 2, 4), fp);
+      g.drawRect(Rect.fromLTWH(tx + (tww / 2).floorToDouble() - 1, ty - th2 + 8, 2, 3), win);
+      if (r() < .5) g.drawRect(Rect.fromLTWH(tx + 2, ty - th2 + 18, 2, 3), win);
     }
     final rp = Path();
     for (double i = 0; i <= w; i += 2) {
@@ -245,23 +272,45 @@ class Art {
     for (int i = 0; i < n; i++) {
       final bx = r() * kW, by = h * (.3 + r() * .5), rr = 40 + r() * 70;
       for (final o in const [-kW, 0.0, kW]) {
-        glow(g, bx + o, by, rr, const C3(120, 170, 230), a);
+        glow(g, bx + o, by, rr, th.fog, a);
       }
     }
   }
 
+  // ---------------- الأرضية
   void _drawGT(Canvas g) {
     final r = mkr(77);
-    g.drawRect(const Rect.fromLTWH(0, 0, 96, 60), Paint()..color = const Color(0xFF070C18));
-    for (int row = 0; row < 4; row++) {
-      final y = 4.0 + row * 14, off = (row % 2) * 16.0;
-      for (double bx = -off; bx < 96; bx += 32) {
-        final l = 9 + r() * 7;
-        g.drawRect(Rect.fromLTWH(bx + 1, y, 30, 13), Paint()..color = hslc(220, .4, l / 100));
-        g.drawRect(Rect.fromLTWH(bx + 1, y, 30, 1), Paint()..color = const Color.fromRGBO(140, 185, 255, .12));
-        g.drawRect(Rect.fromLTWH(bx + 1, y + 12, 30, 1), Paint()..color = const Color.fromRGBO(0, 0, 0, .3));
-        for (int k = 0; k < 3; k++) {
-          g.drawRect(Rect.fromLTWH(bx + 2 + r() * 26, y + 2 + r() * 9, 2, 1), Paint()..color = Color.fromRGBO(180, 210, 255, .04 + r() * .08));
+    g.drawRect(const Rect.fromLTWH(0, 0, 96, 60), Paint()..color = th.soil ? const Color(0xFF0C0906) : const Color(0xFF070C18));
+    if (th.soil) {
+      for (int i = 0; i < 46; i++) {
+        final x = r() * 96, y = r() * 60, w = 4 + r() * 12, h2 = 2 + r() * 6;
+        g.drawOval(Rect.fromLTWH(x, y, w, h2), Paint()..color = hslc(th.gtHue + r() * 14, th.gtSat, (7 + r() * 8) / 100));
+      }
+      final rp = Paint()..color = const Color.fromRGBO(70, 48, 28, .55)..style = PaintingStyle.stroke..strokeWidth = 1.6..strokeCap = StrokeCap.round;
+      for (int i = 0; i < 5; i++) {
+        final p = Path()..moveTo(r() * 96, r() * 8);
+        double x = 0, y = 0;
+        for (int k = 0; k < 4; k++) {
+          x += (r() - .5) * 18;
+          y += 8 + r() * 10;
+          p.relativeLineTo((r() - .5) * 18, 8 + r() * 10);
+        }
+        g.drawPath(p, rp);
+      }
+      for (int i = 0; i < 10; i++) {
+        g.drawCircle(Offset(r() * 96, r() * 60), 1 + r() * 1.5, Paint()..color = Color.fromRGBO(120, 220, 140, .08 + r() * .1));
+      }
+    } else {
+      for (int row = 0; row < 4; row++) {
+        final y = 4.0 + row * 14, off = (row % 2) * 16.0;
+        for (double bx = -off; bx < 96; bx += 32) {
+          final l = 9 + r() * 7;
+          g.drawRect(Rect.fromLTWH(bx + 1, y, 30, 13), Paint()..color = hslc(th.gtHue, th.gtSat, l / 100));
+          g.drawRect(Rect.fromLTWH(bx + 1, y, 30, 1), Paint()..color = const Color.fromRGBO(140, 185, 255, .12));
+          g.drawRect(Rect.fromLTWH(bx + 1, y + 12, 30, 1), Paint()..color = const Color.fromRGBO(0, 0, 0, .3));
+          for (int k = 0; k < 3; k++) {
+            g.drawRect(Rect.fromLTWH(bx + 2 + r() * 26, y + 2 + r() * 9, 2, 1), Paint()..color = Color.fromRGBO(180, 210, 255, .04 + r() * .08));
+          }
         }
       }
     }
@@ -269,11 +318,40 @@ class Art {
         Paint()..shader = ui.Gradient.linear(const Offset(0, 0), const Offset(0, 60), const [Color(0x00000000), Color(0x8C000000)]));
   }
 
+  void _drawWood(Canvas g) {
+    final r = mkr(33);
+    g.drawRect(const Rect.fromLTWH(0, 0, 64, 14), Paint()..color = const Color(0xFF2A1A0E));
+    for (int i = 0; i < 4; i++) {
+      final x = i * 16.0;
+      g.drawRect(Rect.fromLTWH(x + .5, 0, 15, 14), Paint()..color = hslc(26 + r() * 8, .45, (14 + r() * 7) / 100));
+      g.drawRect(Rect.fromLTWH(x + .5, 0, 15, 1.5), Paint()..color = const Color.fromRGBO(255, 210, 150, .16));
+      for (int k = 0; k < 3; k++) {
+        final y = 2 + r() * 10;
+        g.drawLine(Offset(x + 1, y), Offset(x + 14, y + (r() - .5) * 2), Paint()..color = const Color.fromRGBO(0, 0, 0, .28)..strokeWidth = .7);
+      }
+      g.drawCircle(Offset(x + 3, 7), 1, Paint()..color = const Color.fromRGBO(0, 0, 0, .5));
+      g.drawCircle(Offset(x + 13, 7), 1, Paint()..color = const Color.fromRGBO(0, 0, 0, .5));
+    }
+    g.drawRect(const Rect.fromLTWH(0, 10, 64, 4), Paint()..color = const Color.fromRGBO(0, 0, 0, .3));
+  }
+
+  // ---------------- جدار الطوب (الكهف)
   void _drawWall(Canvas g) {
     final w = lw(.8);
     const h = 270.0;
     final r = mkr(91);
-    final segs = <List<double>>[[30, 440], [560, 1010], [1130, 1560], [1690, 2090], [2170, 2320]];
+    final segs = <List<double>>[];
+    if (cfg.classic) {
+      segs.addAll([[30, 440], [560, 1010], [1130, 1560], [1690, 2090], [2170, 2320]]);
+    } else {
+      final rr = mkr(cfg.seed * 31 + 7);
+      double pos = 30;
+      while (pos < w - 500) {
+        final l = 350 + rr() * 450;
+        segs.add([pos, math.min(pos + l, w - 100)]);
+        pos += l + 60 + rr() * 90;
+      }
+    }
     final edge = List<double>.filled(w.ceil() + 2, 1e9);
     for (final s in segs) {
       double e = 70 + r() * 60;
@@ -286,7 +364,7 @@ class Art {
         edge[i] = (ee / 14).round() * 14.0;
       }
     }
-    final base = Paint()..color = const Color(0xFF050A14);
+    final base = Paint()..color = th.wallBase;
     for (final s in segs) {
       for (int i = s[0].toInt(); i < s[1].toInt(); i++) {
         g.drawRect(Rect.fromLTWH(i.toDouble(), edge[i], 1.05, h - edge[i]), base);
@@ -299,7 +377,7 @@ class Art {
         if (cx < 0 || cx >= w || edge[cx.floor()] > y) continue;
         final l = 10 + r() * 9;
         final teal = r() < .06;
-        g.drawRect(Rect.fromLTWH(bx + 1, y + 1, 26, 12), Paint()..color = teal ? hslc(185, .35, l / 100) : hslc(218, .38, l / 100));
+        g.drawRect(Rect.fromLTWH(bx + 1, y + 1, 26, 12), Paint()..color = teal ? hslc(185, .35, l / 100) : hslc(th.wallHue, th.wallSat, l / 100));
         g.drawRect(Rect.fromLTWH(bx + 1, y + 1, 26, 1), Paint()..color = const Color.fromRGBO(150, 190, 255, .10));
         g.drawRect(Rect.fromLTWH(bx + 1, y + 12, 26, 1), Paint()..color = const Color.fromRGBO(0, 0, 0, .25));
         if (r() < .07) {
@@ -307,9 +385,9 @@ class Art {
         }
       }
     }
-    final rune = Paint()..color = const Color.fromRGBO(130, 220, 255, .85);
+    final rune = Paint()..color = th.rune.a(.85);
     final runeGlow = Paint()
-      ..color = const Color.fromRGBO(111, 211, 255, .6)
+      ..color = th.rune.a(.6)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
     for (final s in segs) {
       final n = ((s[1] - s[0]) / 22).floor();
@@ -354,16 +432,14 @@ class Art {
         g.drawPath(rp, rune);
       }
     }
-    // أقواس تُقطع من الجدار لتظهر السماء
     const baseY = 250.0;
     Path archPath(double ax, double hw, double ah) {
-      final p = Path()
+      return Path()
         ..moveTo(ax - hw, baseY)
         ..lineTo(ax - hw, baseY - ah)
         ..arcTo(Rect.fromCircle(center: Offset(ax, baseY - ah), radius: hw), math.pi, math.pi, false)
         ..lineTo(ax + hw, baseY)
         ..close();
-      return p;
     }
     arches.clear();
     for (final s in segs) {
@@ -382,27 +458,105 @@ class Art {
     for (final a in arches) {
       g.drawPath(archPath(a.x, a.hw, a.ah), cut);
     }
-    final stroke = Paint()..color = const Color(0xFF27487A)..style = PaintingStyle.stroke..strokeWidth = 3;
+    final stroke = Paint()..color = th.archStroke..style = PaintingStyle.stroke..strokeWidth = 3;
     for (final a in arches) {
       g.drawPath(archPath(a.x, a.hw + 1, a.ah), stroke);
     }
-    g.drawRect(
-        Rect.fromLTWH(0, 0, w, h),
+    _wallTint(g, w, h);
+  }
+
+  void _wallTint(Canvas g, double w, double h) {
+    g.drawRect(Rect.fromLTWH(0, 0, w, h),
         Paint()
           ..blendMode = BlendMode.srcATop
-          ..shader = ui.Gradient.linear(const Offset(0, 0), const Offset(0, h), const [Color(0x383C6EBE), Color(0x80000410)]));
-    g.drawRect(
-        Rect.fromLTWH(0, h - 60, w, 60),
+          ..shader = ui.Gradient.linear(const Offset(0, 0), Offset(0, h), [th.tintTop, th.tintBottom]));
+    g.drawRect(Rect.fromLTWH(0, h - 60, w, 60),
         Paint()
           ..blendMode = BlendMode.dstOut
           ..shader = ui.Gradient.linear(Offset(0, h - 60), Offset(0, h), const [Color(0x00000000), Color(0x99000000)]));
   }
 
-  void _buildProps() {
+  // ---------------- جدار الغابة: جذوع أشجار ضخمة
+  void _drawTrunks(Canvas g) {
+    final w = lw(.8);
+    const h = 270.0;
+    final r = mkr(cfg.seed * 13 + 5);
+    g.drawRect(Rect.fromLTWH(0, 40, w, h - 40), Paint()..color = th.wallBase);
+    // أشجار خلفية خافتة
+    for (double x = 10; x < w; x += 70 + r() * 80) {
+      final tw = 16 + r() * 18;
+      g.drawRect(Rect.fromLTWH(x, 0, tw, h), Paint()..color = Color.fromRGBO(10, 26, 16, .9));
+    }
+    // الجذوع الكبيرة
+    final trunkXs = <double>[];
+    for (double x = 40; x < w - 60; x += 110 + r() * 150) {
+      final tw = 34 + r() * 40;
+      trunkXs.add(x);
+      final body = Path()
+        ..moveTo(x, 0)
+        ..lineTo(x + tw, 0)
+        ..cubicTo(x + tw + 4, h * .5, x + tw - 3, h * .8, x + tw + 14, h)
+        ..lineTo(x - 14, h)
+        ..cubicTo(x + 3, h * .8, x - 4, h * .5, x, 0)
+        ..close();
+      g.drawPath(
+          body,
+          Paint()
+            ..shader = ui.Gradient.linear(Offset(x, 0), Offset(x + tw, 0), const [Color(0xFF0A130C), Color(0xFF1E2C1A), Color(0xFF0A120B)], const [0, .35, 1]));
+      for (int k = 0; k < 10; k++) {
+        final bx = x + 3 + r() * (tw - 6);
+        g.drawLine(Offset(bx, r() * 30), Offset(bx + (r() - .5) * 6, h * (.4 + r() * .6)),
+            Paint()..color = Color.fromRGBO(0, 0, 0, .35)..strokeWidth = 1 + r());
+      }
+      for (int k = 0; k < 3; k++) {
+        g.drawOval(Rect.fromCenter(center: Offset(x + tw * (.3 + r() * .4), 40 + r() * 170), width: 8 + r() * 6, height: 14 + r() * 10),
+            Paint()..color = const Color.fromRGBO(0, 0, 0, .5));
+      }
+      // طحلب مضيء وفطر صغير
+      for (int k = 0; k < 4; k++) {
+        final fx = x + r() * tw, fy = 60 + r() * 180;
+        glow(g, fx, fy, 7, th.rune, .5);
+        g.drawCircle(Offset(fx, fy), 1.4, Paint()..color = th.rune.a(.95));
+      }
+      // جذور في الأسفل
+      final rp = Paint()..color = const Color(0xFF0C140C)..style = PaintingStyle.stroke..strokeWidth = 5..strokeCap = StrokeCap.round;
+      for (final sg in const [-1.0, 1.0]) {
+        g.drawPath(
+            Path()
+              ..moveTo(x + tw / 2, h - 40)
+              ..quadraticBezierTo(x + tw / 2 + sg * 24, h - 14, x + tw / 2 + sg * (40 + r() * 20), h),
+            rp);
+      }
+    }
+    // تاج الأشجار (أوراق)
+    for (double x = -20; x < w + 20; x += 26 + r() * 20) {
+      final rr = 30 + r() * 38;
+      final y = 10 + r() * 50;
+      g.drawCircle(Offset(x, y), rr, Paint()..color = Color.fromRGBO(6 + (r() * 8).floor(), 24 + (r() * 22).floor(), 14 + (r() * 10).floor(), .96));
+    }
+    // الكروم المتدلية
+    for (int i = 0; i < (w / 90).floor(); i++) {
+      final x = r() * w, len = 60 + r() * 120;
+      final p = Path()..moveTo(x, 40);
+      p.quadraticBezierTo(x + (r() - .5) * 20, 40 + len / 2, x + (r() - .5) * 14, 40 + len);
+      g.drawPath(p, Paint()..color = const Color(0xFF0E2A14)..style = PaintingStyle.stroke..strokeWidth = 1.4);
+      for (int k = 0; k < 5; k++) {
+        g.drawCircle(Offset(x + (r() - .5) * 8, 50 + r() * len), 1.6, Paint()..color = const Color.fromRGBO(30, 90, 40, .9));
+      }
+    }
+    // أشعة ضوء من بين الأوراق
+    arches.clear();
+    for (double x = 160; x < w - 160; x += 240 + r() * 220) {
+      arches.add(Arch(x, 14 + r() * 8, 250));
+    }
+    _wallTint(g, w, h);
+  }
+
+  // ---------------- الديكور
+  void _classicProps() {
     final r = mkr(7);
     void add(String k, double x, double h, {int layer = 0, bool dark = false, C3? g}) => props.add(Prop(k, x, h, layer, dark, g));
     double wOf(String k, double h) => h * sp[k]!.width / sp[k]!.height;
-    // بعيدة (خلف المنصات)
     for (final x in const [250.0, 820.0, 1280.0, 1790.0, 2230.0]) {
       add('pillar', x, 220, dark: true);
     }
@@ -420,14 +574,13 @@ class Art {
     row('bars', 1840, 3, 90);
     add('corner', 1000, 150, dark: true);
     add('vault', 2385, 170, dark: true);
-    for (final s in Level.grounds) {
+    for (final s in cfg.grounds) {
       final q = (s.w / 170).floor();
       for (int i = 0; i < q; i++) {
         add('quartz', s.x + 40 + r() * (s.w - 80), 32 + r() * 30, g: const C3(120, 230, 255));
       }
     }
-    // أمامية
-    for (final s in Level.grounds) {
+    for (final s in cfg.grounds) {
       final n = (s.w / 110).floor();
       for (int i = 0; i < n; i++) {
         add('mush', s.x + 30 + r() * (s.w - 60), 12 + r() * 22, layer: 1, g: const C3(255, 130, 90));
@@ -449,6 +602,48 @@ class Art {
     }
     for (final x in const [300.0, 760.0, 1310.0, 1900.0, 2280.0]) {
       add('skull', x, 13, layer: 1);
+    }
+  }
+
+  /// ديكور المراحل المولَّدة: حسب الثيم وبذرة المرحلة
+  void _genProps() {
+    final r = mkr(cfg.seed * 977 + 3);
+    final forest = th.wall == WallStyle.trunks;
+    void add(String k, double x, double h, {int layer = 0, bool dark = false, C3? g}) => props.add(Prop(k, x, h, layer, dark, g));
+    for (final s in cfg.grounds) {
+      final w = s.w;
+      if (w < 120) continue;
+      double px(double m) => s.x + m + r() * (w - 2 * m);
+      if (!forest) {
+        final nf = (w / 380).floor();
+        for (int i = 0; i < nf; i++) {
+          if (r() < .6) {
+            add('pillar', px(60), 200 + r() * 40, dark: true);
+          } else {
+            add('statue', px(80), 110 + r() * 30, dark: true);
+          }
+        }
+        if (r() < .35) add('bars', px(80), 90, dark: true);
+        final q = (w / 200).floor();
+        for (int i = 0; i < q; i++) {
+          add('quartz', px(40), 30 + r() * 28, g: const C3(120, 230, 255));
+        }
+      } else {
+        final q = (w / 220).floor();
+        for (int i = 0; i < q; i++) {
+          add('quartz', px(40), 26 + r() * 24, g: const C3(120, 255, 170));
+        }
+        if (r() < .4) add('statue', px(90), 105, dark: true);
+      }
+      final m = (w / (forest ? 90 : 120)).floor();
+      for (int i = 0; i < m; i++) {
+        add('mush', px(30), 12 + r() * (forest ? 30 : 22), layer: 1, g: forest ? const C3(150, 255, 150) : const C3(255, 130, 90));
+      }
+      if (w > 220) add('torch', px(40), 72, layer: 1, g: const C3(255, 170, 70));
+      if (w > 260 && r() < .6) add('lantern', px(40), 44, layer: 1, g: const C3(255, 190, 90));
+      if (r() < .5) add('spider', px(40), 70, layer: 1, g: forest ? const C3(255, 90, 160) : const C3(255, 80, 90));
+      if (r() < .4) add('skull', px(30), 13, layer: 1);
+      if (w > 360 && r() < .25) add(r() < .5 ? 'skeleton_a' : 'skeleton_b', px(60), 58, layer: 1);
     }
   }
 }

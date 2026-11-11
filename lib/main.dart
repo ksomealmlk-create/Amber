@@ -23,7 +23,7 @@ class AmberApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(brightness: Brightness.dark, scaffoldBackgroundColor: const Color(0xFF05070D)),
       builder: (context, child) => Directionality(textDirection: TextDirection.rtl, child: child!),
-      home: const GameScreen(),
+      home: const AppShell(),
     );
   }
 }

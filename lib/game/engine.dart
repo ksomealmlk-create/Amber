@@ -4,24 +4,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'level.dart';
 
-enum Phase { menu, playing, dead, won }
+enum Phase { playing, dead, won }
 
 class Player extends Box {
   double vx = 0, vy = 0, anim = 0, sq = 0;
-  double lN = 0, lF = 0, aN = 0, aF = 0, lean = 0, bob = 0; // زوايا أطراف الشخصية
+  double lN = 0, lF = 0, aN = 0, aF = 0, lean = 0, bob = 0;
   int f = 1, coy = 0, atk = 0, dash = 0, dcd = 0, hp = 5, inv = 0, jb = 0;
   bool g = true, pj = false, pa = false, pd = false;
   Player() : super(30, 418, 14, 22);
 }
 
 class Enemy extends Box {
-  double minX, maxX, ph;
-  int d = 1, hp = 2, hit = 0, kb = 0;
-  bool flying;
-  double baseY;
-  Enemy(double x, double y, this.minX, this.maxX, this.flying, this.ph)
+  double minX, maxX, ph, baseY, jy = 0, jv = 0;
+  int d = 1, hp = 2, hit = 0, kb = 0, kind, hopT = 60;
+  bool get flying => kind == 1;
+  Enemy(double x, double y, this.minX, this.maxX, this.kind, this.ph)
       : baseY = y,
-        super(x, y, 18, 12);
+        super(x, y, kind == 2 ? 20 : 18, 12);
 }
 
 class Part {
@@ -38,42 +37,122 @@ class Ember {
   Ember(this.x, this.y);
 }
 
+class Chest {
+  final double x, y;
+  bool open = false;
+  int anim = 0;
+  Chest(this.x, this.y);
+}
+
+class MovPlat extends Box {
+  final double ox, oy, ax, ay, sp, ph;
+  double dx = 0, dy = 0;
+  MovPlat(MovSpec s)
+      : ox = s.x,
+        oy = s.y,
+        ax = s.ax,
+        ay = s.ay,
+        sp = s.sp,
+        ph = s.ph,
+        super(s.x, s.y, s.w, 14);
+}
+
+class Crumble extends Box {
+  int timer = -1, respawn = 0;
+  bool active = true;
+  Crumble(CrumbleSpec s) : super(s.x, s.y, s.w, 14);
+}
+
+class Proj {
+  double x, y, vx, vy;
+  int l, kind; // 0 شبكة، 1 موجة أرضية
+  Proj(this.x, this.y, this.vx, this.vy, this.l, this.kind);
+}
+
+class Boss extends Box {
+  double hp, maxHp, vx = 0, vy = 0;
+  String name;
+  int kind;
+  String st = 'sleep';
+  int t = 0, hit = 0, stun = 0, cd = 90, dead = 0, dir = -1;
+  bool enraged = false;
+  Boss(double x, double y, this.hp, this.name, this.kind)
+      : maxHp = hp,
+        super(x, y, 96, 56);
+}
+
 class GameEngine extends ChangeNotifier {
   final ValueNotifier<int> frame = ValueNotifier<int>(0);
   final math.Random rng = math.Random();
 
-  Phase phase = Phase.menu;
+  late LevelConfig cfg;
+  Phase phase = Phase.playing;
   bool paused = false;
   bool left = false, right = false, jump = false, dash = false, atk = false;
+
+  // ترقيات
+  int maxHp = 5, dashCd = 40, hammerDmg = 2;
 
   late Player p;
   List<Enemy> en = [];
   List<Ember> embers = [];
+  List<Chest> chests = [];
+  List<MovPlat> movs = [];
+  List<Crumble> crums = [];
+  List<Box> haz = [];
   List<Part> parts = [];
-  double cam = 0;
-  double vw = kW; // العرض المرئي الحالي
+  List<Proj> projs = [];
+  final List<Box> _live = [];
+  Boss? boss;
+  bool goalOpen = true, bossHitFlag = false;
+  double cam = 0, vw = kW;
   int t = 0, shake = 0, cp = 30, deadT = 0, playFrames = 0, kills = 0, collected = 0, flash = 0;
+  int bossIntro = 0;
 
   double _acc = 0, _last = 0;
 
   GameEngine() {
-    reset(true);
+    loadLevel(LevelFactory.build(1, 1));
   }
 
-  int get totalEmbers => Level.embers.length;
+  int get totalEmbers => cfg.totalEmbers;
+
+  void loadLevel(LevelConfig c, {int hearts = 5, int dashCooldown = 40, int hammer = 2}) {
+    cfg = c;
+    _acc = 0;
+    _last = 0;
+    maxHp = hearts;
+    dashCd = dashCooldown;
+    hammerDmg = hammer;
+    cp = 30;
+    reset(true);
+    phase = Phase.playing;
+    paused = false;
+    notifyListeners();
+  }
 
   void reset(bool full) {
     p = Player()..x = cp.toDouble();
+    p.hp = maxHp;
     if (full) {
       cp = 30;
       p.x = 30;
-      en = [];
-      for (final a in Level.enemies) {
-        final fl = a.length > 3;
-        final y = (fl ? a[3] : kFloorY) - 12;
-        en.add(Enemy(a[0], y, a[1], a[2], fl, rng.nextDouble() * 6));
-      }
-      embers = Level.embers.map((a) => Ember(a[0], a[1])).toList();
+      en = cfg.enemies.map((a) {
+        final y = (a.y ?? kFloorY) - 12;
+        return Enemy(a.x, y, a.min, a.max, a.kind, rng.nextDouble() * 6);
+      }).toList();
+      embers = cfg.embers.map((a) => Ember(a[0], a[1])).toList();
+      chests = cfg.chests.map((a) => Chest(a.x, a.y)).toList();
+      movs = cfg.movs.map((a) => MovPlat(a)).toList();
+      crums = cfg.crumbs.map((a) => Crumble(a)).toList();
+      haz = cfg.hazards.map((a) => Box(a.x, a.y, a.w, a.h)).toList();
+      projs = [];
+      parts = [];
+      final b = cfg.boss;
+      boss = b == null ? null : (Boss(b.x, kFloorY - 56, b.hp, b.name, b.kind));
+      goalOpen = b == null;
+      bossHitFlag = false;
+      bossIntro = 0;
       kills = 0;
       collected = 0;
       playFrames = 0;
@@ -81,7 +160,7 @@ class GameEngine extends ChangeNotifier {
     }
   }
 
-  void start() {
+  void restart() {
     reset(true);
     phase = Phase.playing;
     paused = false;
@@ -113,11 +192,6 @@ class GameEngine extends ChangeNotifier {
     _updateParts();
     if (shake > 0) shake--;
     if (flash > 0) flash--;
-    if (phase == Phase.menu) {
-      _animate();
-      cam += ((math.sin(t / 300) * 0.5 + 0.5) * 120 - cam) * 0.01;
-      return;
-    }
     if (paused) return;
     if (phase == Phase.dead) {
       deadT++;
@@ -129,14 +203,87 @@ class GameEngine extends ChangeNotifier {
       return;
     }
     if (phase == Phase.won) {
-      cam += ((Level.goalX - vw / 2 - cam)) * 0.03;
+      cam += ((cfg.goalX - vw / 2 - cam)) * 0.03;
       if (t % 3 == 0) {
-        _spark(Level.goalX + (rng.nextDouble() - .5) * 40, Level.goalY + 20 + (rng.nextDouble() - .5) * 80, 1, const Color(0xFFE6C8FF), add: true);
+        _spark(cfg.goalX + (rng.nextDouble() - .5) * 40, cfg.goalY + 20 + (rng.nextDouble() - .5) * 80, 1, const Color(0xFFE6C8FF), add: true);
       }
       return;
     }
     playFrames++;
+    _updateWorld();
     _updatePlayer();
+    if (boss != null) _updateBoss();
+    _updateProjs();
+  }
+
+  // ---------- العناصر المتحركة
+  bool _onTop(Box b) => (p.y + p.h - b.y).abs() < 2.6 && p.x + p.w > b.x + 1 && p.x < b.x + b.w - 1;
+
+  void _updateWorld() {
+    for (final m in movs) {
+      final standing = p.g && _onTop(m);
+      final nx = m.ox + math.sin(t * m.sp + m.ph) * m.ax;
+      final ny = m.oy + math.sin(t * m.sp * 1.3 + m.ph) * m.ay;
+      m.dx = nx - m.x;
+      m.dy = ny - m.y;
+      m.x = nx;
+      m.y = ny;
+      if (standing) {
+        p.x += m.dx;
+        p.y += m.dy;
+      }
+    }
+    for (final c in crums) {
+      if (c.active) {
+        if (c.timer >= 0) {
+          c.timer--;
+          if (c.timer == 0) {
+            c.active = false;
+            c.respawn = 260;
+            _debris(c);
+          }
+        }
+      } else {
+        c.respawn--;
+        if (c.respawn <= 0) {
+          c.active = true;
+          c.timer = -1;
+        }
+      }
+    }
+    _live
+      ..clear()
+      ..addAll(cfg.solids)
+      ..addAll(movs);
+    for (final c in crums) {
+      if (c.active) _live.add(c);
+    }
+    for (final c in chests) {
+      if (c.open && c.anim < 30) c.anim++;
+    }
+  }
+
+  void _debris(Box c) {
+    for (int i = 0; i < 8; i++) {
+      parts.add(Part(c.x + rng.nextDouble() * c.w, c.y + 4, (rng.nextDouble() - .5) * 1.2, rng.nextDouble() * 1.5, 30, const Color(0xFF6B4A2A), 2.2, false));
+    }
+  }
+
+  // ---------- اللاعب
+  bool _hurt(double fromX) {
+    if (p.inv > 0) return false;
+    p.hp--;
+    p.inv = 70;
+    p.vy = -5;
+    p.vx = (p.x < fromX ? -1 : 1) * 4.0;
+    shake = 7;
+    _spark(p.x + 7, p.y + 11, 12, const Color(0xFFFF6666));
+    HapticFeedback.mediumImpact();
+    if (p.hp <= 0) {
+      _die();
+      return true;
+    }
+    return false;
   }
 
   void _updatePlayer() {
@@ -148,6 +295,7 @@ class GameEngine extends ChangeNotifier {
     if (p.jb > 0) p.jb--;
     if (atk && !p.pa && p.atk <= 0) {
       p.atk = 26;
+      bossHitFlag = false;
       for (final e in en) {
         e.hit = 0;
       }
@@ -155,7 +303,7 @@ class GameEngine extends ChangeNotifier {
     p.pa = atk;
     if (dash && !p.pd && p.dcd <= 0 && p.dash <= 0) {
       p.dash = 10;
-      p.dcd = 40;
+      p.dcd = dashCd;
       p.vy = 0;
     }
     p.pd = dash;
@@ -207,14 +355,13 @@ class GameEngine extends ChangeNotifier {
       p.anim += p.vx.abs() * 0.12;
       if (t % 9 == 0) _dust(p.x + 7, p.y + 22, 1);
     }
-    if (p.atk == 12) {
-      _spark(p.x + 7 + p.f * 24, p.y + 18, 18, const Color(0xFFBDEFFF), add: true);
-      shake = 5;
-      HapticFeedback.lightImpact();
+    if (p.g) {
+      for (final c in crums) {
+        if (c.active && c.timer < 0 && _onTop(c)) c.timer = 28;
+      }
     }
-    if (p.atk > 0) p.atk--;
 
-    for (final s in Level.grounds) {
+    for (final s in cfg.grounds) {
       if (s.x + 20 < p.x && s.x + 30 > cp && p.g) {
         cp = (s.x + 30).toInt();
         _spark(p.x + 7, p.y + 10, 18, const Color(0xFF9FE8FF), add: true);
@@ -234,21 +381,14 @@ class GameEngine extends ChangeNotifier {
       }
     }
 
+    // ضربة المطرقة
     final ab = Box(p.f > 0 ? p.x + p.w : p.x - 36, p.y - 8, 36, 36);
     for (final e in en) {
       if (e.hp <= 0) continue;
-      if (e.flying) e.y = e.baseY + math.sin(t / 25 + e.ph) * 10;
-      if (e.kb > 0) {
-        e.kb--;
-        e.x += (p.x < e.x ? 1 : -1) * 2.5;
-      } else {
-        e.x += e.d * (e.flying ? 0.9 : 0.7);
-        if (e.x < e.minX) e.d = 1;
-        if (e.x + e.w > e.maxX) e.d = -1;
-      }
+      _moveEnemy(e);
       if (p.atk > 8 && p.atk < 17 && e.hit == 0 && ab.hits(e)) {
         e.hit = 1;
-        e.hp -= 2;
+        e.hp -= hammerDmg;
         e.kb = 8;
         _spark(e.x + 9, e.y + 6, 10, const Color(0xFFFFB347), add: true);
         shake = 4;
@@ -258,18 +398,36 @@ class GameEngine extends ChangeNotifier {
           _spark(e.x + 9, e.y + 6, 26, const Color(0xFFFFD27A), add: true);
         }
       }
-      if (e.hp > 0 && p.inv <= 0 && p.hits(e)) {
-        p.hp--;
-        p.inv = 70;
-        p.vy = -5;
-        p.vx = (p.x < e.x ? -1 : 1) * 4.0;
-        shake = 7;
-        _spark(p.x + 7, p.y + 11, 12, const Color(0xFFFF6666));
+      if (e.hp > 0 && p.hits(e)) {
+        if (_hurt(e.x + 9)) return;
+      }
+    }
+    for (final h in haz) {
+      if (p.hits(h)) {
+        if (_hurt(h.x + h.w / 2)) return;
+      }
+    }
+    final b = boss;
+    if (b != null && b.st != 'sleep' && b.st != 'intro' && b.st != 'dead') {
+      if (p.atk > 8 && p.atk < 17 && !bossHitFlag && ab.hits(b)) {
+        bossHitFlag = true;
+        final dmg = hammerDmg * (b.st == 'stun' ? 2 : 1);
+        b.hp -= dmg;
+        b.hit = 10;
+        _spark(b.x + b.w / 2, b.y + 20, 14, b.st == 'stun' ? const Color(0xFFFFE27A) : const Color(0xFFFFB347), add: true);
+        shake = 6;
         HapticFeedback.mediumImpact();
-        if (p.hp <= 0) {
-          _die();
-          return;
+        if (b.hp <= 0) {
+          b.hp = 0;
+          b.st = 'dead';
+          b.dead = 0;
+          shake = 16;
+          projs.clear();
+          kills++;
         }
+      }
+      if (b.st != 'stun' && b.st != 'dead' && p.hits(b)) {
+        if (_hurt(b.x + b.w / 2)) return;
       }
     }
 
@@ -282,21 +440,217 @@ class GameEngine extends ChangeNotifier {
         _spark(m.x, m.y, 14, const Color(0xFFFFD98A), add: true);
         flash = 6;
         HapticFeedback.selectionClick();
-        if (collected % 6 == 0 && p.hp < 5) p.hp++;
+        if (collected % 6 == 0 && p.hp < maxHp) p.hp++;
+      }
+    }
+    for (final c in chests) {
+      if (!c.open && p.hits(Box(c.x - 2, c.y - 2, 22, 18))) {
+        c.open = true;
+        collected += 3;
+        if (p.hp < maxHp) p.hp = math.min(maxHp, p.hp + 2);
+        _spark(c.x + 8, c.y + 4, 30, const Color(0xFFFFD27A), add: true);
+        shake = 4;
+        HapticFeedback.heavyImpact();
       }
     }
 
-    if ((p.x - Level.goalX).abs() < 30 && (p.y - Level.goalY).abs() < 70) {
+    if (goalOpen && (p.x - cfg.goalX).abs() < 30 && (p.y - cfg.goalY).abs() < 70) {
       phase = Phase.won;
-      _spark(Level.goalX, Level.goalY + 20, 50, const Color(0xFFE6C8FF), add: true);
+      _spark(cfg.goalX, cfg.goalY + 20, 50, const Color(0xFFE6C8FF), add: true);
       HapticFeedback.heavyImpact();
       notifyListeners();
     }
+    if (p.atk == 12) {
+      _spark(p.x + 7 + p.f * 24, p.y + 18, 18, const Color(0xFFBDEFFF), add: true);
+      shake = 5;
+      HapticFeedback.lightImpact();
+    }
+    if (p.atk > 0) p.atk--;
     _animate();
-    cam += ((math.max(0.0, math.min(kLW - vw, p.x - vw / 2 + p.f * 30))) - cam) * .1;
+    cam += ((math.max(0.0, math.min(cfg.length - vw, p.x - vw / 2 + p.f * 30))) - cam) * .1;
   }
 
-  // ---- حركة الأطراف (رجلين وذراعين)
+  void _moveEnemy(Enemy e) {
+    if (e.flying) e.y = e.baseY + math.sin(t / 25 + e.ph) * 10;
+    if (e.kb > 0) {
+      e.kb--;
+      e.x += (p.x < e.x ? 1 : -1) * 2.5;
+      return;
+    }
+    final sp = e.kind == 1 ? 0.9 : (e.kind == 2 ? 0.95 : 0.7);
+    e.x += e.d * sp;
+    if (e.x < e.minX) e.d = 1;
+    if (e.x + e.w > e.maxX) e.d = -1;
+    if (e.kind == 2) {
+      e.hopT--;
+      if (e.hopT <= 0 && e.jy == 0 && (p.x - e.x).abs() < 190) {
+        e.jv = -5.5;
+        e.hopT = 80 + rng.nextInt(50);
+        e.d = p.x < e.x ? -1 : 1;
+      }
+      if (e.jv != 0 || e.jy != 0) {
+        e.jy += e.jv;
+        e.jv += 0.42;
+        if (e.jy >= 0) {
+          e.jy = 0;
+          e.jv = 0;
+        }
+      }
+      e.y = e.baseY + e.jy;
+    }
+  }
+
+  // ---------- الزعيم
+  void _updateBoss() {
+    final b = boss!;
+    b.t++;
+    if (b.hit > 0) b.hit--;
+    if (b.st == 'sleep') {
+      if (p.x > cfg.boss!.trigger) {
+        b.st = 'intro';
+        b.t = 0;
+        shake = 20;
+        HapticFeedback.heavyImpact();
+      }
+      return;
+    }
+    if (b.st == 'dead') {
+      b.dead++;
+      if (b.dead % 4 == 0) {
+        _spark(b.x + rng.nextDouble() * b.w, b.y + rng.nextDouble() * b.h, 6, const Color(0xFFFFB347), add: true);
+      }
+      if (b.dead == 140) {
+        goalOpen = true;
+        collected += 8;
+        p.hp = maxHp;
+        _spark(b.x + b.w / 2, b.y + 20, 60, const Color(0xFFFFE27A), add: true);
+        shake = 12;
+        HapticFeedback.heavyImpact();
+      }
+      return;
+    }
+    if (b.hp <= b.maxHp * 0.4 && !b.enraged) {
+      b.enraged = true;
+      shake = 14;
+      _spark(b.x + b.w / 2, b.y + 20, 40, const Color(0xFFFF4A3A), add: true);
+    }
+    final sp = b.enraged ? 1.35 : 1.0;
+    bool landed = false;
+    b.vy += .5;
+    b.y += b.vy;
+    if (b.y + b.h >= kFloorY) {
+      b.y = kFloorY - b.h;
+      if (b.vy > 2) landed = true;
+      b.vy = 0;
+    }
+    final px = p.x + 7;
+    switch (b.st) {
+      case 'intro':
+        if (b.t > 70) {
+          b.st = 'idle';
+          b.t = 0;
+          b.cd = 50;
+        }
+        break;
+      case 'idle':
+        b.dir = px < b.x + b.w / 2 ? -1 : 1;
+        b.x += b.dir * 0.7 * sp;
+        b.x = math.max(4.0, math.min(cfg.length - 14 - b.w, b.x));
+        b.cd--;
+        if (b.cd <= 0) {
+          final r = rng.nextInt(3);
+          b.st = r == 0 ? 'web' : (r == 1 ? 'charge' : 'slam');
+          b.t = 0;
+        }
+        break;
+      case 'web':
+        if (b.t == 28) {
+          final n = b.enraged ? 5 : 3;
+          final ox = b.x + b.w / 2, oy = b.y + 12;
+          final base = math.atan2((p.y + 11) - oy, px - ox);
+          for (int i = 0; i < n; i++) {
+            final a = base + (i - (n - 1) / 2) * 0.22;
+            projs.add(Proj(ox, oy, math.cos(a) * 3.2 * sp, math.sin(a) * 3.2 * sp, 200, 0));
+          }
+          shake = 3;
+        }
+        if (b.t > 56) {
+          b.st = 'idle';
+          b.cd = b.enraged ? 45 : 75;
+        }
+        break;
+      case 'charge':
+        if (b.t == 1) b.dir = px < b.x + b.w / 2 ? -1 : 1;
+        if (b.t >= 32) {
+          b.x += b.dir * (b.enraged ? 8.0 : 6.0);
+          if (b.x <= 4 || b.x + b.w >= cfg.length - 14) {
+            b.x = math.max(4.0, math.min(cfg.length - 14 - b.w, b.x));
+            b.st = 'stun';
+            b.t = 0;
+            b.stun = 110;
+            shake = 12;
+            _spark(b.x + b.w / 2, b.y + 20, 20, const Color(0xFFFFE27A), add: true);
+            HapticFeedback.heavyImpact();
+          }
+        }
+        break;
+      case 'slam':
+        if (b.t == 1) {
+          b.vy = -12.5;
+          final dx = px - (b.x + b.w / 2);
+          b.vx = math.max(-6.0, math.min(6.0, dx / 32));
+        }
+        if (b.t > 1) {
+          b.x += b.vx;
+          b.x = math.max(4.0, math.min(cfg.length - 14 - b.w, b.x));
+        }
+        if (landed && b.t > 8) {
+          shake = 12;
+          HapticFeedback.heavyImpact();
+          final s2 = b.enraged ? 4.2 : 3.4;
+          projs.add(Proj(b.x + b.w / 2, kFloorY - 14, -s2, 0, 160, 1));
+          projs.add(Proj(b.x + b.w / 2, kFloorY - 14, s2, 0, 160, 1));
+          if (en.where((e) => e.hp > 0).length < 4) {
+            for (int i = 0; i < 2; i++) {
+              final sx = b.x + (i == 0 ? -20 : b.w + 6);
+              final nx = math.max(20.0, math.min(cfg.length - 40, sx));
+              final e = Enemy(nx, kFloorY - 12, math.max(10.0, nx - 160), math.min(cfg.length - 20, nx + 160), 2, rng.nextDouble() * 6);
+              e.hp = 1;
+              en.add(e);
+            }
+          }
+          b.st = 'stun';
+          b.t = 0;
+          b.stun = 50;
+        }
+        break;
+      case 'stun':
+        b.stun--;
+        if (b.stun <= 0) {
+          b.st = 'idle';
+          b.cd = 40;
+        }
+        break;
+    }
+  }
+
+  void _updateProjs() {
+    for (final q in projs) {
+      q.x += q.vx;
+      q.y += q.vy;
+      q.l--;
+      final bx = Box(q.x - 4, q.y - 4, 8, q.kind == 1 ? 14 : 8);
+      if (p.hits(bx) && q.l > 0) {
+        q.l = 0;
+        _hurt(q.x);
+      }
+      if (q.kind == 0 && q.y > kFloorY - 2) q.l = 0;
+    }
+    projs.removeWhere((q) => q.l <= 0 || q.x < -20 || q.x > cfg.length + 20);
+    if (phase == Phase.dead) projs.clear();
+  }
+
+  // ---------- حركة الأطراف
   void _animate() {
     double lN = 0, lF = 0, aN = 0, aF = 0, lean = 0, bob = 0;
     final sp = math.min(1.0, p.vx.abs() / 2.7);
@@ -325,7 +679,6 @@ class GameEngine extends ChangeNotifier {
     }
     double kn = 0.3;
     if (p.atk > 0) {
-      // ضربة المطرقة: رفع ثم هبوط سريع ثم استرجاع
       kn = 0.5;
       if (p.atk > 16) {
         aN = -3.2; aF = -1.2; lean = -0.12;
@@ -353,10 +706,10 @@ class GameEngine extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ---- فيزياء
+  // ---------- فيزياء
   void _moveX(Player o, double dx) {
     o.x += dx;
-    for (final s in Level.solids) {
+    for (final s in _live) {
       if (o.hits(s)) {
         if (dx > 0) {
           o.x = s.x - o.w;
@@ -371,7 +724,7 @@ class GameEngine extends ChangeNotifier {
   bool _moveY(Player o, double dy) {
     bool g = false;
     o.y += dy;
-    for (final s in Level.solids) {
+    for (final s in _live) {
       if (o.hits(s)) {
         if (dy > 0) {
           o.y = s.y - o.h;
@@ -385,7 +738,7 @@ class GameEngine extends ChangeNotifier {
     return g;
   }
 
-  // ---- جسيمات
+  // ---------- جسيمات
   void _spark(double x, double y, int n, Color c, {bool add = false}) {
     for (int i = 0; i < n; i++) {
       parts.add(Part(x, y, (rng.nextDouble() - .5) * 4, (rng.nextDouble() - .5) * 4, 25 + rng.nextInt(15), c, 1.5 + rng.nextDouble() * 2, add));
