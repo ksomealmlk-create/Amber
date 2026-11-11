@@ -9,7 +9,7 @@ enum Phase { playing, dead, won }
 class Player extends Box {
   double vx = 0, vy = 0, anim = 0, sq = 0;
   double lN = 0, lF = 0, aN = 0, aF = 0, lean = 0, bob = 0;
-  int f = 1, coy = 0, atk = 0, dash = 0, dcd = 0, hp = 5, inv = 0, jb = 0;
+  int f = 1, coy = 0, atk = 0, dash = 0, dcd = 0, hp = 5, inv = 0, jb = 0, spr = 0;
   bool g = true, pj = false, pa = false, pd = false;
   Player() : super(30, 418, 14, 22);
 }
@@ -63,6 +63,81 @@ class Crumble extends Box {
   Crumble(CrumbleSpec s) : super(s.x, s.y, s.w, 14);
 }
 
+class Haz extends Box {
+  final int kind;
+  Haz(double x, double y, double w, double h, this.kind) : super(x, y, w, h);
+}
+
+class Brk extends Box {
+  final int kind;
+  final bool drop;
+  int hp, hit = 0;
+  bool alive = true;
+  Brk(BreakSpec s)
+      : kind = s.kind,
+        drop = s.drop,
+        hp = (s.kind == 2 || s.kind == 4) ? 3 : (s.kind == 3 ? 2 : 1),
+        super(s.x, s.y, s.w, s.h);
+}
+
+class TimedHaz extends Box {
+  final TimedSpec s;
+  bool on = false, warn = false;
+  TimedHaz(TimedSpec spec)
+      : s = spec,
+        super(spec.x, spec.y, spec.w, spec.h);
+}
+
+class Faller {
+  final FallSpec s;
+  int st = 0, tm;
+  double y = -30, vy = 0;
+  Faller(FallSpec spec)
+      : s = spec,
+        tm = spec.phase.toInt();
+}
+
+class Roller {
+  final RollSpec s;
+  double x;
+  bool active = false;
+  int tm;
+  Roller(RollSpec spec)
+      : s = spec,
+        x = spec.x1,
+        tm = spec.phase.toInt();
+}
+
+class SpringPad extends Box {
+  int anim = 0;
+  SpringPad(SpringSpec s) : super(s.x, s.y, 26, 12);
+}
+
+class KeyDoorO {
+  final KeyDoorSpec s;
+  final Box door;
+  bool taken = false, open = false;
+  int anim = 0;
+  KeyDoorO(KeyDoorSpec spec)
+      : s = spec,
+        door = Box(spec.dx, kFloorY - 110, 22, 110);
+}
+
+class VanishP extends Box {
+  final VanishSpec s;
+  bool solid = true, warn = false;
+  VanishP(VanishSpec spec)
+      : s = spec,
+        super(spec.x, spec.y, spec.w, 14);
+}
+
+class Ambush {
+  final AmbushSpec s;
+  bool fired = false;
+  int anim = 0;
+  Ambush(this.s);
+}
+
 class Proj {
   double x, y, vx, vy;
   int l, kind; // 0 شبكة، 1 موجة أرضية
@@ -99,7 +174,25 @@ class GameEngine extends ChangeNotifier {
   List<Chest> chests = [];
   List<MovPlat> movs = [];
   List<Crumble> crums = [];
-  List<Box> haz = [];
+  List<Haz> haz = [];
+  List<Brk> brks = [];
+  List<TimedHaz> timedH = [];
+  List<Faller> fallers = [];
+  List<Roller> rollers = [];
+  List<SpringPad> springsL = [];
+  List<KeyDoorO> kdoors = [];
+  List<VanishP> vplats = [];
+  List<Ambush> ambushes = [];
+  int deaths = 0;
+  int get stars {
+    final tot = totalEmbers;
+    final f = tot == 0 ? 1.0 : collected / tot;
+    int st = 1;
+    if (f >= .7) st = 2;
+    if (f >= .9 && deaths == 0) st = 3;
+    return st;
+  }
+
   List<Part> parts = [];
   List<Proj> projs = [];
   final List<Box> _live = [];
@@ -126,6 +219,7 @@ class GameEngine extends ChangeNotifier {
     dashCd = dashCooldown;
     hammerDmg = hammer;
     cp = 30;
+    deaths = 0;
     reset(true);
     phase = Phase.playing;
     paused = false;
@@ -146,7 +240,15 @@ class GameEngine extends ChangeNotifier {
       chests = cfg.chests.map((a) => Chest(a.x, a.y)).toList();
       movs = cfg.movs.map((a) => MovPlat(a)).toList();
       crums = cfg.crumbs.map((a) => Crumble(a)).toList();
-      haz = cfg.hazards.map((a) => Box(a.x, a.y, a.w, a.h)).toList();
+      haz = cfg.hazards.map((a) => Haz(a.x, a.y, a.w, a.h, a.kind)).toList();
+      brks = cfg.breaks.map((a) => Brk(a)).toList();
+      timedH = cfg.timed.map((a) => TimedHaz(a)).toList();
+      fallers = cfg.falls.map((a) => Faller(a)).toList();
+      rollers = cfg.rolls.map((a) => Roller(a)).toList();
+      springsL = cfg.springs.map((a) => SpringPad(a)).toList();
+      kdoors = cfg.keyDoors.map((a) => KeyDoorO(a)).toList();
+      vplats = cfg.vanish.map((a) => VanishP(a)).toList();
+      ambushes = cfg.ambush.map((a) => Ambush(a)).toList();
       projs = [];
       parts = [];
       final b = cfg.boss;
@@ -255,6 +357,7 @@ class GameEngine extends ChangeNotifier {
         }
       }
     }
+    _updateGadgets();
     _live
       ..clear()
       ..addAll(cfg.solids)
@@ -262,8 +365,207 @@ class GameEngine extends ChangeNotifier {
     for (final c in crums) {
       if (c.active) _live.add(c);
     }
+    for (final b in brks) {
+      if (b.alive) _live.add(b);
+    }
+    for (final k in kdoors) {
+      if (!k.open) _live.add(k.door);
+    }
+    for (final v in vplats) {
+      if (v.solid) _live.add(v);
+    }
     for (final c in chests) {
       if (c.open && c.anim < 30) c.anim++;
+    }
+  }
+
+  // ---------- العناصر التفاعلية الجديدة
+  bool _onSlip() {
+    final cx = p.x + 7;
+    for (final z in cfg.slips) {
+      if (cx > z.x && cx < z.x + z.w) return true;
+    }
+    return false;
+  }
+
+  Color _brkCol(int k) {
+    switch (k) {
+      case 1:
+        return const Color(0xFF7A4E2A);
+      case 2:
+        return const Color(0xFF8A8E9A);
+      case 3:
+        return const Color(0xFF7FE6FF);
+      case 4:
+        return const Color(0xFF6A6F7A);
+      default:
+        return const Color(0xFFA06A34);
+    }
+  }
+
+  void _breakFx(Brk b) {
+    final col = _brkCol(b.kind);
+    for (int i = 0; i < 16; i++) {
+      parts.add(Part(b.x + rng.nextDouble() * b.w, b.y + rng.nextDouble() * b.h, (rng.nextDouble() - .5) * 3.2, -rng.nextDouble() * 2.6, 34, col, 2 + rng.nextDouble() * 2, true, 230));
+    }
+    _dust(b.x + b.w / 2, b.y + b.h, 8);
+    shake = 5;
+    HapticFeedback.mediumImpact();
+  }
+
+  void _hitBreakables(Box ab) {
+    for (final b in brks) {
+      if (!b.alive || !ab.hits(b)) continue;
+      b.hp--;
+      b.hit = 8;
+      _spark(b.x + b.w / 2, b.y + b.h / 2, 6, _brkCol(b.kind), add: true);
+      if (b.hp <= 0) {
+        b.alive = false;
+        _breakFx(b);
+        if (b.drop) {
+          collected++;
+          flash = 5;
+          _spark(b.x + b.w / 2, b.y, 12, const Color(0xFFFFD98A), add: true);
+        }
+      }
+    }
+  }
+
+  void _updateGadgets() {
+    if (phase != Phase.playing) return;
+    final px = p.x + 7;
+    for (final b in brks) {
+      if (b.hit > 0) b.hit--;
+    }
+    // فخاخ زمنية
+    for (final h in timedH) {
+      final s = h.s;
+      if (s.kind == 6) {
+        h.on = true;
+        h.warn = false;
+        h.x = s.x + (math.sin(t * 0.045 + s.phase) + 1) / 2 * (s.w - 16);
+        h.w = 16;
+      } else {
+        final m = (t + s.phase) % s.period;
+        h.on = m < s.on;
+        h.warn = !h.on && m > s.period - 26;
+        if (h.on && m < 2 && (px - h.x).abs() < 300) {
+          _spark(h.x + h.w / 2, h.y + h.h, 4, const Color(0xFFFFE27A), add: true);
+        }
+      }
+      if (h.on && p.hits(h)) {
+        if (_hurt(h.x + h.w / 2)) return;
+      }
+    }
+    // أجسام ساقطة
+    for (final f in fallers) {
+      final fx = f.s.x;
+      if (f.st == 0) {
+        if ((px - fx).abs() < 340) {
+          f.tm++;
+          if (f.tm >= f.s.period) {
+            f.st = 1;
+            f.tm = 0;
+          }
+        }
+      } else if (f.st == 1) {
+        f.tm++;
+        if (f.tm >= 36) {
+          f.st = 2;
+          f.y = -20;
+          f.vy = 0;
+        }
+      } else if (f.st == 2) {
+        f.vy = math.min(8.0, f.vy + .35);
+        f.y += f.vy;
+        if (p.hits(Box(fx - 9, f.y - 9, 18, 18))) {
+          f.st = 3;
+          f.tm = 0;
+          _spark(fx, f.y, 10, const Color(0xFFCCCCCC), add: true);
+          if (_hurt(fx)) return;
+        } else if (f.y >= kFloorY - 9) {
+          f.st = 3;
+          f.tm = 0;
+          shake = 3;
+          _spark(fx, kFloorY - 8, 12, const Color(0xFFBBBBBB), add: true);
+          _dust(fx, kFloorY, 6);
+        }
+      } else {
+        f.tm++;
+        if (f.tm > 20) {
+          f.st = 0;
+          f.tm = 0;
+        }
+      }
+    }
+    // أجسام متدحرجة
+    for (final r in rollers) {
+      if (!r.active) {
+        if (px > r.s.x0 - 120 && px < r.s.x1 - 260) {
+          r.tm++;
+          if (r.tm >= r.s.period) {
+            r.active = true;
+            r.x = r.s.x1;
+            r.tm = 0;
+          }
+        }
+      } else {
+        r.x -= r.s.kind == 1 ? 2.8 : (r.s.kind == 2 ? 3.1 : 2.3);
+        if (p.hits(Box(r.x - 12, kFloorY - 24, 24, 24))) {
+          if (_hurt(r.x)) return;
+        }
+        if (t % 5 == 0) _dust(r.x + 8, kFloorY, 1);
+        if (r.x < r.s.x0) {
+          r.active = false;
+          r.tm = 0;
+        }
+      }
+    }
+    // نوابض
+    for (final s in springsL) {
+      if (s.anim > 0) s.anim--;
+    }
+    // مفاتيح وأبواب
+    for (final k in kdoors) {
+      if (!k.taken && (px - k.s.kx).abs() < 20 && ((p.y + 11) - k.s.ky).abs() < 28) {
+        k.taken = true;
+        collected += 2;
+        _spark(k.s.kx, k.s.ky, 20, const Color(0xFFFFE27A), add: true);
+        flash = 6;
+        HapticFeedback.heavyImpact();
+      }
+      if (k.taken && !k.open && (px - (k.door.x + 11)).abs() < 46) {
+        k.open = true;
+        k.anim = 0;
+        shake = 7;
+        _spark(k.door.x + 11, k.door.y + 50, 24, const Color(0xFFFFE27A), add: true);
+        HapticFeedback.heavyImpact();
+      }
+      if (k.open && k.anim < 40) k.anim++;
+    }
+    // منصات تختفي
+    for (final v in vplats) {
+      if (v.s.period > 0) {
+        final m = (t + v.s.phase) % v.s.period;
+        v.solid = m < v.s.period * .68;
+        v.warn = v.solid && m > v.s.period * .68 - 24;
+      } else {
+        v.solid = true;
+      }
+    }
+    // كمائن
+    for (final a in ambushes) {
+      if (!a.fired && px > a.s.x - 130 && px < a.s.x + 60) {
+        a.fired = true;
+        if (a.s.kind == 4) {
+          en.add(Enemy(a.s.x, kFloorY - 80, a.s.x - 60, a.s.x + 60, 4, rng.nextDouble() * 6));
+        } else {
+          en.add(Enemy(a.s.x, kFloorY - 12, a.s.x - 90, a.s.x + 90, 0, 0));
+        }
+        shake = 5;
+        _spark(a.s.x, kFloorY - 10, 20, const Color(0xFFB8A8FF), add: true);
+      }
+      if (a.fired) a.anim++;
     }
   }
 
@@ -293,6 +595,7 @@ class GameEngine extends ChangeNotifier {
   void _updatePlayer() {
     final L = left, R = right;
     if (p.inv > 0) p.inv--;
+    if (p.spr > 0) p.spr--;
     if (p.dcd > 0) p.dcd--;
     if (jump && !p.pj) p.jb = 10;
     p.pj = jump;
@@ -327,7 +630,8 @@ class GameEngine extends ChangeNotifier {
       p.vy = 0;
       if (t % 2 == 0) _spark(p.x + 7, p.y + 11, 1, const Color(0xFF66AADD), add: true);
     } else {
-      final a = p.g ? .95 : .62;
+      final slip = p.g && _onSlip();
+      final a = p.g ? (slip ? .32 : .95) : .62;
       if (L && !R) {
         p.vx -= a;
         p.f = -1;
@@ -335,7 +639,7 @@ class GameEngine extends ChangeNotifier {
         p.vx += a;
         p.f = 1;
       } else {
-        p.vx *= p.g ? .7 : .93;
+        p.vx *= p.g ? (slip ? .975 : .7) : .93;
       }
       p.vx = math.max(-3.0, math.min(3.0, p.vx));
       p.vy += .5;
@@ -354,12 +658,24 @@ class GameEngine extends ChangeNotifier {
       p.sq = -0.25;
       _dust(p.x + 7, p.y + 22, 6);
     }
-    if (!jump && p.vy < -3.5 && p.dash <= 0) p.vy = -3.5;
+    if (!jump && p.vy < -3.5 && p.dash <= 0 && p.spr <= 0) p.vy = -3.5;
 
     final wasG = p.g;
     final preVy = p.vy;
     _moveX(p, p.vx);
     p.g = _moveY(p, p.vy);
+    for (final sp in springsL) {
+      if (p.vy >= 0 && p.hits(Box(sp.x, sp.y - 2, sp.w, 14)) && p.y + p.h <= sp.y + 12) {
+        p.vy = -13.5;
+        p.g = false;
+        p.coy = 0;
+        p.spr = 22;
+        sp.anim = 14;
+        p.sq = -0.3;
+        _spark(sp.x + 13, sp.y, 12, const Color(0xFFE6B8FF), add: true);
+        HapticFeedback.lightImpact();
+      }
+    }
     if (p.g && !wasG && preVy > 3) {
       p.sq = 0.3;
       _dust(p.x + 7, p.y + 22, 8);
@@ -475,6 +791,7 @@ class GameEngine extends ChangeNotifier {
       notifyListeners();
     }
     if (p.atk == 12) {
+      _hitBreakables(ab);
       _spark(p.x + 7 + p.f * 24, p.y + 18, 18, const Color(0xFFBDEFFF), add: true);
       shake = 5;
       HapticFeedback.lightImpact();
@@ -489,6 +806,30 @@ class GameEngine extends ChangeNotifier {
     if (e.kb > 0) {
       e.kb--;
       e.x += (p.x < e.x ? 1 : -1) * 2.5;
+      return;
+    }
+    if (e.kind == 4) {
+      final dx = (p.x + 7) - (e.x + 9);
+      if (dx.abs() < 240) {
+        e.x += (dx > 0 ? 1 : -1) * 0.8;
+        e.d = dx > 0 ? 1 : -1;
+        e.baseY += ((p.y - 6) - e.baseY) * 0.012;
+        if (e.baseY < 300) e.baseY = 300;
+        if (e.baseY > 410) e.baseY = 410;
+      }
+      e.x = math.max(10.0, math.min(cfg.length - 30, e.x));
+      e.y = e.baseY + math.sin(t / 20 + e.ph) * 12;
+      return;
+    }
+    if (e.kind == 3) {
+      final dx = (p.x + 7) - (e.x + 9);
+      e.d = dx > 0 ? 1 : -1;
+      e.hopT--;
+      if (e.hopT <= 0 && dx.abs() < 300 && dx.abs() > 30) {
+        projs.add(Proj(e.x + 9, e.y + 6, e.d * 2.6, 0, 150, 2));
+        e.hopT = 105;
+        _spark(e.x + 9 + e.d * 8, e.y + 6, 5, const Color(0xFFFFB347), add: true);
+      }
       return;
     }
     final sp = e.kind == 1 ? 0.9 : (e.kind == 2 ? 0.95 : 0.7);
@@ -572,8 +913,8 @@ class GameEngine extends ChangeNotifier {
         b.x = math.max(4.0, math.min(cfg.length - 14 - b.w, b.x));
         b.cd--;
         if (b.cd <= 0) {
-          final r = rng.nextInt(3);
-          b.st = r == 0 ? 'web' : (r == 1 ? 'charge' : 'slam');
+          final pl = _pool(b.kind);
+          b.st = pl[rng.nextInt(pl.length)];
           b.t = 0;
         }
         break;
@@ -589,8 +930,40 @@ class GameEngine extends ChangeNotifier {
           shake = 3;
         }
         if (b.t > 56) {
-          b.st = 'idle';
-          b.cd = b.enraged ? 45 : 75;
+          if (b.kind != 0) {
+            b.st = 'stun';
+            b.t = 0;
+            b.stun = 36;
+          } else {
+            b.st = 'idle';
+            b.cd = b.enraged ? 45 : 75;
+          }
+        }
+        break;
+      case 'rain':
+        if (b.t % (b.enraged ? 8 : 12) == 0 && b.t < 100) {
+          final tx = cl(px + (rng.nextDouble() - .5) * 240, 20.0, cfg.length - 20.0);
+          projs.add(Proj(tx, -10, 0, 3.4 * sp, 220, 2));
+        }
+        if (b.t > 120) {
+          b.st = 'stun';
+          b.t = 0;
+          b.stun = 40;
+        }
+        break;
+      case 'ring':
+        if (b.t == 30) {
+          final n = b.enraged ? 12 : 8;
+          for (int i = 0; i < n; i++) {
+            final a = i * 2 * math.pi / n;
+            projs.add(Proj(b.x + b.w / 2, b.y + 40, math.cos(a) * 2.4 * sp, math.sin(a) * 2.4 * sp, 150, 2));
+          }
+          shake = 4;
+        }
+        if (b.t > 52) {
+          b.st = 'stun';
+          b.t = 0;
+          b.stun = 40;
         }
         break;
       case 'charge':
@@ -628,7 +1001,8 @@ class GameEngine extends ChangeNotifier {
             for (int i = 0; i < 2; i++) {
               final sx = b.x + (i == 0 ? -20 : b.w + 6);
               final nx = math.max(20.0, math.min(cfg.length - 40, sx));
-              final e = Enemy(nx, kFloorY - 12, math.max(10.0, nx - 160), math.min(cfg.length - 20, nx + 160), 2, rng.nextDouble() * 6);
+              final mk = b.kind == 0 ? 2 : ((b.kind == 7 || b.kind == 10) ? 4 : 0);
+              final e = Enemy(nx, kFloorY - 12, math.max(10.0, nx - 160), math.min(cfg.length - 20, nx + 160), mk, rng.nextDouble() * 6);
               e.hp = 1;
               en.add(e);
             }
@@ -648,6 +1022,33 @@ class GameEngine extends ChangeNotifier {
     }
   }
 
+  List<String> _pool(int k) {
+    switch (k) {
+      case 0:
+        return const ['web', 'charge', 'slam'];
+      case 1:
+        return const ['charge', 'slam', 'rain'];
+      case 3:
+        return const ['ring', 'slam', 'rain'];
+      case 4:
+        return const ['charge', 'web', 'slam'];
+      case 5:
+        return const ['rain', 'web', 'charge'];
+      case 6:
+        return const ['slam', 'rain', 'ring'];
+      case 7:
+        return const ['web', 'ring', 'charge'];
+      case 8:
+        return const ['charge', 'slam', 'web'];
+      case 9:
+        return const ['ring', 'rain', 'slam'];
+      case 10:
+        return const ['web', 'charge', 'rain', 'ring'];
+      default:
+        return const ['web', 'charge', 'slam', 'rain', 'ring'];
+    }
+  }
+
   void _updateProjs() {
     for (final q in projs) {
       q.x += q.vx;
@@ -658,7 +1059,17 @@ class GameEngine extends ChangeNotifier {
         q.l = 0;
         _hurt(q.x);
       }
-      if (q.kind == 0 && q.y > kFloorY - 2) q.l = 0;
+      if (q.kind != 1 && q.y > kFloorY - 2) q.l = 0;
+      if (q.kind == 2 && q.l > 0) {
+        final pb = Box(q.x - 3, q.y - 3, 6, 6);
+        for (final sd in _live) {
+          if (pb.hits(sd)) {
+            q.l = 0;
+            _spark(q.x, q.y, 5, const Color(0xFFFFB347), add: true);
+            break;
+          }
+        }
+      }
     }
     projs.removeWhere((q) => q.l <= 0 || q.x < -20 || q.x > cfg.length + 20);
     if (phase == Phase.dead) projs.clear();
@@ -712,6 +1123,7 @@ class GameEngine extends ChangeNotifier {
   }
 
   void _die() {
+    deaths++;
     phase = Phase.dead;
     deadT = 0;
     shake = 12;

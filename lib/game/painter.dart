@@ -127,6 +127,7 @@ class GamePainter extends CustomPainter {
     _crumbles(c);
     _movers(c);
     _hazards(c);
+    _gadgets(c);
     _props(c, 1);
     _chests(c);
     _embers(c);
@@ -139,6 +140,13 @@ class GamePainter extends CustomPainter {
     if (forest) _vines(c);
     _lighting(c);
     _warmGlows(c);
+    if (cfg.world == 10) {
+      final dx = e.p.x - cam + 7, dy = e.p.y + 11;
+      c.drawRect(
+          Rect.fromLTWH(-12, -12, vw + 24, kH + 24),
+          Paint()
+            ..shader = ui.Gradient.radial(Offset(dx, dy), 190, const [Color(0x00000000), Color(0xF2000000)], const [0.35, 1.0]));
+    }
     _projs(c);
     _player(c);
     for (final q in e.parts) {
@@ -274,6 +282,10 @@ class GamePainter extends CustomPainter {
     for (final h in e.haz) {
       final px = h.x - cam;
       if (px > vw + 20 || px + h.w < -20) continue;
+      if (h.kind == 2) {
+        _pool(c, h, px);
+        continue;
+      }
       final path = Path();
       final tips = Path();
       final n = (h.w / 6).ceil();
@@ -375,6 +387,14 @@ class GamePainter extends CustomPainter {
       _spiderSmall(c, en, ex, flashed);
       return;
     }
+    if (en.kind == 3) {
+      _shooter(c, en, ex, flashed);
+      return;
+    }
+    if (en.kind == 4) {
+      _wraith(c, en, ex, flashed);
+      return;
+    }
     if (en.flying) {
       final cx = ex + 9, cy = en.y + 6;
       glow(c, cx, cy, 30, const C3(255, 90, 120), .35, add: true);
@@ -436,6 +456,10 @@ class GamePainter extends CustomPainter {
 
   // ---------------- الزعيم: ملك العناكب
   void _boss(Canvas c) {
+    if (e.boss!.kind != 0) {
+      _bossGeneric(c);
+      return;
+    }
     final b = e.boss!;
     final cx = b.x + b.w / 2 - e.cam;
     if (cx < -120 || cx > vw + 120) return;
@@ -528,12 +552,686 @@ class GamePainter extends CustomPainter {
     c.restore();
   }
 
+
+  // ================= العناصر التفاعلية الجديدة =================
+  static const Map<int, C3> _poolC3 = {
+    2: C3(79, 176, 90),
+    3: C3(176, 255, 58),
+    5: C3(255, 106, 26),
+    11: C3(255, 58, 160),
+  };
+
+  void _pool(Canvas c, Haz h, double px) {
+    final t = e.t;
+    final k = _poolC3[cfg.world] ?? const C3(110, 190, 255);
+    final col = k.a(1.0);
+    glow(c, px + h.w / 2, h.y + 4, h.w * .8, k, .32 + math.sin(t / 15 + h.x) * .06, add: true);
+    final path = Path()..moveTo(px, h.y + h.h + 1);
+    for (double xx = 0; xx <= h.w; xx += 6) {
+      path.lineTo(px + xx, h.y + 2 + math.sin((xx + t * 2.0) / 9) * 1.8);
+    }
+    path
+      ..lineTo(px + h.w, h.y + h.h + 1)
+      ..close();
+    c.drawPath(path, Paint()..shader = ui.Gradient.linear(Offset(px, h.y), Offset(px, h.y + h.h), [col, Color.lerp(col, Colors.black, .55)!]));
+    c.drawPath(path, Paint()..color = const Color(0x55FFFFFF)..style = PaintingStyle.stroke..strokeWidth = .8);
+    for (int i = 0; i < (h.w / 40).floor(); i++) {
+      final ph = (t / 50 + i * .37 + h.x * .01) % 1;
+      c.drawCircle(Offset(px + 14 + i * 40 + math.sin(i * 3.1) * 6, h.y + h.h - ph * (h.h + 10)), 1.6, Paint()..color = Color.fromRGBO(255, 255, 255, .6 * (1 - ph))..blendMode = BlendMode.plus);
+    }
+  }
+
+  void _gadgets(Canvas c) {
+    final cam = e.cam, t = e.t;
+    for (final z in cfg.slips) {
+      final x0 = z.x - cam;
+      if (x0 > vw || x0 + z.w < 0) continue;
+      c.drawRect(Rect.fromLTWH(x0, kFloorY - 2, z.w, 6), _fill(const Color(0xAA9FDFFF)));
+      for (int i = 0; i < (z.w / 40).floor(); i++) {
+        final sx = x0 + 10 + i * 40 + ((t * .6 + i * 17) % 30);
+        c.drawLine(Offset(sx, kFloorY - 1), Offset(sx + 10, kFloorY - 1), Paint()..color = const Color(0xCCFFFFFF)..strokeWidth = 1);
+      }
+    }
+    for (final v in e.vplats) {
+      _vanish(c, v, v.x - cam);
+    }
+    for (final s in e.springsL) {
+      _spring(c, s, s.x - cam);
+    }
+    for (final k in e.kdoors) {
+      _keyDoor(c, k, cam);
+    }
+    for (final b in e.brks) {
+      if (!b.alive) continue;
+      final px = b.x - cam;
+      if (px > vw + 20 || px + b.w < -20) continue;
+      _brk(c, b, px);
+    }
+    for (final a in e.ambushes) {
+      _ambushMark(c, a, a.s.x - cam);
+    }
+    for (final h in e.timedH) {
+      final px = h.x - cam;
+      if (px > vw + 60 || px + h.w < -60) continue;
+      _timed(c, h, px);
+    }
+    for (final f in e.fallers) {
+      _faller(c, f, cam);
+    }
+    for (final r in e.rollers) {
+      if (r.active) _roller(c, r, r.x - cam);
+    }
+  }
+
+  void _brk(Canvas c, Brk b, double px) {
+    final fl = b.hit > 0;
+    final x = px + (fl ? (e.t % 2 == 0 ? 1.0 : -1.0) : 0.0);
+    final white = _fill(Colors.white);
+    switch (b.kind) {
+      case 1:
+        final r = RRect.fromRectAndRadius(Rect.fromLTWH(x, b.y, b.w, b.h), const Radius.circular(6));
+        c.drawRRect(r, fl ? white : _fill(const Color(0xFF7A4E2A)));
+        c.drawRect(Rect.fromLTWH(x, b.y + 6, b.w, 3), _fill(const Color(0xFF3A3F4A)));
+        c.drawRect(Rect.fromLTWH(x, b.y + b.h - 9, b.w, 3), _fill(const Color(0xFF3A3F4A)));
+        break;
+      case 2:
+        final path = Path()
+          ..moveTo(x, b.y + b.h)
+          ..lineTo(x + 3, b.y + 9)
+          ..lineTo(x + 11, b.y)
+          ..lineTo(x + b.w - 8, b.y + 3)
+          ..lineTo(x + b.w, b.y + 13)
+          ..lineTo(x + b.w - 2, b.y + b.h)
+          ..close();
+        c.drawPath(path, fl ? white : _fill(const Color(0xFF858A98)));
+        c.drawPath(path, Paint()..color = const Color(0x66000000)..style = PaintingStyle.stroke..strokeWidth = 1);
+        if (b.hp < 3) c.drawLine(Offset(x + 12, b.y + 4), Offset(x + 18, b.y + 18), Paint()..color = const Color(0xAA000000)..strokeWidth = 1);
+        break;
+      case 3:
+        glow(c, x + b.w / 2, b.y + b.h / 2, b.h * .9, const C3(120, 220, 255), .4, add: true);
+        final path3 = Path()
+          ..moveTo(x + b.w / 2, b.y)
+          ..lineTo(x + b.w, b.y + b.h * .35)
+          ..lineTo(x + b.w * .8, b.y + b.h)
+          ..lineTo(x + b.w * .2, b.y + b.h)
+          ..lineTo(x, b.y + b.h * .35)
+          ..close();
+        c.drawPath(path3, fl ? white : _fill(const Color(0xFF6FD8F0)));
+        c.drawPath(path3, Paint()..color = const Color(0xAAFFFFFF)..style = PaintingStyle.stroke..strokeWidth = 1);
+        break;
+      case 4:
+        c.drawRect(Rect.fromLTWH(x, b.y, b.w, b.h), fl ? white : _fill(const Color(0xFF2E3442)));
+        for (double yy = b.y + 10; yy < b.y + b.h; yy += 10) {
+          c.drawLine(Offset(x, yy), Offset(x + b.w, yy), Paint()..color = const Color(0x66000000)..strokeWidth = 1);
+        }
+        c.drawLine(Offset(x + b.w * .3, b.y + 4), Offset(x + b.w * .7, b.y + b.h - 6), Paint()..color = Color.fromRGBO(255, 220, 140, .35 + .2 * math.sin(e.t / 12))..strokeWidth = 1.2);
+        break;
+      default:
+        c.drawRect(Rect.fromLTWH(x, b.y, b.w, b.h), fl ? white : _fill(const Color(0xFFA06A34)));
+        final bp = Paint()..color = const Color(0xFF5A3A18)..style = PaintingStyle.stroke..strokeWidth = 1.6;
+        c.drawRect(Rect.fromLTWH(x + .8, b.y + .8, b.w - 1.6, b.h - 1.6), bp);
+        c.drawLine(Offset(x, b.y), Offset(x + b.w, b.y + b.h), bp);
+        c.drawLine(Offset(x + b.w, b.y), Offset(x, b.y + b.h), bp);
+    }
+  }
+
+  void _timed(Canvas c, TimedHaz h, double px) {
+    final t = e.t;
+    final s = h.s;
+    final on = h.on, warn = h.warn;
+    final fl = warn && (t ~/ 3) % 2 == 0;
+    final cx = px + h.w / 2;
+    switch (s.kind) {
+      case 0: // سلك كهربائي
+        final post = _fill(const Color(0xFF3A3F4A));
+        c.drawRect(Rect.fromLTWH(px - 3, h.y, 5, h.h), post);
+        c.drawRect(Rect.fromLTWH(px + h.w - 2, h.y, 5, h.h), post);
+        c.drawLine(Offset(px, h.y + 3), Offset(px + h.w, h.y + 3), Paint()..color = const Color(0xFF777C88)..strokeWidth = 1.2);
+        if (on || fl) {
+          final path = Path()..moveTo(px, h.y + 3);
+          for (int i = 1; i <= 6; i++) {
+            path.lineTo(px + h.w * i / 6, h.y + 3 + ((t + i * 5) % 3 - 1) * 9.0 + (i.isEven ? h.h * .5 : h.h * .15));
+          }
+          glow(c, cx, h.y + h.h / 2, h.w * .9, const C3(140, 210, 255), on ? .7 : .3, add: true);
+          c.drawPath(path, Paint()..color = on ? const Color(0xFFE6F6FF) : const Color(0x88BEE6FF)..style = PaintingStyle.stroke..strokeWidth = on ? 1.8 : 1..blendMode = BlendMode.plus);
+        }
+        break;
+      case 1: // أشواك تظهر
+        final hh2 = on ? h.h : (warn ? 5.0 : 2.0);
+        c.drawRect(Rect.fromLTWH(px, kFloorY - 2, h.w, 2), _fill(const Color(0xFF30343E)));
+        final n = (h.w / 8).floor();
+        for (int i = 0; i < n; i++) {
+          final bx = px + i * (h.w / n);
+          c.drawPath(
+              Path()
+                ..moveTo(bx, kFloorY - 2)
+                ..lineTo(bx + h.w / n / 2, kFloorY - 2 - hh2)
+                ..lineTo(bx + h.w / n, kFloorY - 2)
+                ..close(),
+              _fill(on ? const Color(0xFFD8DCE8) : const Color(0xFF6A6F7C)));
+        }
+        if (on) glow(c, cx, kFloorY - 10, h.w, const C3(255, 120, 100), .25, add: true);
+        break;
+      case 2: // نافورة نار
+        c.drawRect(Rect.fromLTWH(px, kFloorY - 4, h.w, 4), _fill(const Color(0xFF2A1410)));
+        if (on) {
+          final hgt = h.h * (.92 + math.sin(t / 2.0) * .08);
+          final path = Path()
+            ..moveTo(px + 2, kFloorY - 4)
+            ..quadraticBezierTo(px - 4, kFloorY - hgt * .5, cx, kFloorY - hgt)
+            ..quadraticBezierTo(px + h.w + 4, kFloorY - hgt * .5, px + h.w - 2, kFloorY - 4)
+            ..close();
+          glow(c, cx, kFloorY - hgt * .5, hgt * .8, const C3(255, 120, 40), .6, add: true);
+          c.drawPath(path, Paint()..color = const Color(0xCCFF7A1A)..blendMode = BlendMode.plus);
+          c.drawPath(
+              Path()
+                ..moveTo(px + 8, kFloorY - 4)
+                ..quadraticBezierTo(cx, kFloorY - hgt * .5, cx, kFloorY - hgt * .7)
+                ..quadraticBezierTo(cx, kFloorY - hgt * .5, px + h.w - 8, kFloorY - 4)
+                ..close(),
+              Paint()..color = const Color(0xCCFFE8A0)..blendMode = BlendMode.plus);
+        } else if (warn) {
+          glow(c, cx, kFloorY - 8, 22, const C3(255, 120, 40), fl ? .6 : .25, add: true);
+        }
+        break;
+      case 3: // سحابة سامة
+        c.drawOval(Rect.fromLTWH(px + 6, kFloorY - 8, h.w - 12, 8), _fill(const Color(0xFF3A5A2A)));
+        if (on || warn) {
+          final a = on ? .6 : (fl ? .35 : .15);
+          for (int i = 0; i < 5; i++) {
+            final bx = px + 8 + (h.w - 16) * (i / 4) + math.sin(t / 10 + i) * 4;
+            final by = kFloorY - 12 - (on ? (i % 3) * 10 : (i % 2) * 3) - math.sin(t / 14 + i * 2) * 3;
+            c.drawCircle(Offset(bx, by), on ? 12 : 6, Paint()..color = Color.fromRGBO(150, 255, 90, a));
+          }
+          if (on) glow(c, cx, kFloorY - 22, h.w, const C3(160, 255, 90), .35, add: true);
+        }
+        break;
+      case 4: // شعاع ضوء
+        c.drawRect(Rect.fromLTWH(cx - 7, h.y - 2, 14, 5), _fill(const Color(0xFF6A5A2A)));
+        c.drawRect(Rect.fromLTWH(cx - 7, kFloorY - 3, 14, 3), _fill(const Color(0xFF6A5A2A)));
+        if (on) {
+          glow(c, cx, h.y + h.h / 2, h.h * .7, const C3(255, 240, 160), .55, add: true);
+          c.drawRect(Rect.fromLTWH(cx - 5, h.y, 10, h.h), Paint()..color = const Color(0xCCFFF2B0)..blendMode = BlendMode.plus);
+          c.drawRect(Rect.fromLTWH(cx - 1.5, h.y, 3, h.h), Paint()..color = const Color(0xFFFFFFFF)..blendMode = BlendMode.plus);
+        } else if (warn) {
+          c.drawRect(Rect.fromLTWH(cx - 1, h.y, 2, h.h), Paint()..color = Color.fromRGBO(255, 240, 160, fl ? .7 : .25)..blendMode = BlendMode.plus);
+        }
+        break;
+      case 5: // نبات يعضّ
+        final open = on;
+        c.drawLine(Offset(cx, kFloorY), Offset(cx, kFloorY - 14), Paint()..color = const Color(0xFF2A6A2A)..strokeWidth = 4);
+        final jaw = open ? 14.0 : (warn ? 8.0 : 3.0);
+        final pc = _fill(on ? const Color(0xFFC83A5A) : const Color(0xFF3A8A3A));
+        c.drawPath(
+            Path()
+              ..moveTo(cx - 14, kFloorY - 14)
+              ..quadraticBezierTo(cx - 16, kFloorY - 14 - jaw - 8, cx, kFloorY - 14 - jaw)
+              ..quadraticBezierTo(cx - 6, kFloorY - 14, cx - 14, kFloorY - 14)
+              ..close(),
+            pc);
+        c.drawPath(
+            Path()
+              ..moveTo(cx + 14, kFloorY - 14)
+              ..quadraticBezierTo(cx + 16, kFloorY - 14 - jaw - 8, cx, kFloorY - 14 - jaw)
+              ..quadraticBezierTo(cx + 6, kFloorY - 14, cx + 14, kFloorY - 14)
+              ..close(),
+            pc);
+        if (on) {
+          for (int i = -2; i <= 2; i++) {
+            c.drawLine(Offset(cx + i * 5, kFloorY - 14), Offset(cx + i * 5, kFloorY - 14 - jaw * .7), Paint()..color = const Color(0xFFFFFFFF)..strokeWidth = 1.2);
+          }
+        }
+        break;
+      default: // نصل متأرجح
+        final bx = h.x + h.w / 2 - e.cam;
+        c.drawLine(Offset(bx, h.y - 20), Offset(bx, h.y + 4), Paint()..color = const Color(0xFF555A66)..strokeWidth = 1.4);
+        c.drawPath(
+            Path()
+              ..moveTo(bx - 7, h.y + 4)
+              ..lineTo(bx + 7, h.y + 4)
+              ..lineTo(bx, h.y + h.h)
+              ..close(),
+            _fill(const Color(0xFFD8DCE8)));
+        glow(c, bx, h.y + h.h * .6, 22, const C3(200, 220, 255), .25, add: true);
+        c.drawLine(Offset(px - 2, h.y - 20), Offset(px + 118, h.y - 20), Paint()..color = const Color(0x33FFFFFF)..strokeWidth = 1);
+    }
+  }
+
+  void _faller(Canvas c, Faller f, double cam) {
+    final x = f.s.x - cam;
+    if (x < -30 || x > vw + 30) return;
+    final k = f.s.kind;
+    if (f.st == 1) {
+      final fl = (f.tm ~/ 4) % 2 == 0;
+      c.drawOval(Rect.fromCenter(center: Offset(x, kFloorY - 1), width: 26, height: 6), Paint()..color = Color.fromRGBO(255, 80, 60, fl ? .6 : .25));
+      c.drawLine(Offset(x, 0), Offset(x, 14 + f.tm * .5), Paint()..color = const Color(0x55CCCCCC)..strokeWidth = 1);
+      return;
+    }
+    if (f.st != 2) return;
+    final y = f.y;
+    const cols = [Color(0xFF858A98), Color(0xFFA8E4FF), Color(0xFFFF7A2A), Color(0xFF6A4A24), Color(0xFF5FE0F0), Color(0xFFB04AD8)];
+    final col = cols[k.clamp(0, 5).toInt()];
+    if (k == 2) glow(c, x, y, 30, const C3(255, 120, 40), .6, add: true);
+    if (k == 4 || k == 1) {
+      c.drawPath(
+          Path()
+            ..moveTo(x - 6, y - 10)
+            ..lineTo(x + 6, y - 10)
+            ..lineTo(x, y + 10)
+            ..close(),
+          _fill(col));
+      c.drawPath(
+          Path()
+            ..moveTo(x - 6, y - 10)
+            ..lineTo(x + 6, y - 10)
+            ..lineTo(x, y + 10)
+            ..close(),
+          Paint()..color = const Color(0xAAFFFFFF)..style = PaintingStyle.stroke..strokeWidth = 1);
+    } else if (k == 3) {
+      c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(x, y), width: 26, height: 7), const Radius.circular(3)), _fill(col));
+      c.drawCircle(Offset(x - 9, y + 3), 3.5, _fill(const Color(0xFF2E7A2E)));
+    } else {
+      c.drawCircle(Offset(x, y), 9, _fill(col));
+      c.drawCircle(Offset(x - 3, y - 3), 3, Paint()..color = const Color(0x55FFFFFF));
+    }
+  }
+
+  void _roller(Canvas c, Roller r, double x) {
+    if (x < -30 || x > vw + 30) return;
+    final rot = e.t * .25;
+    final cy = kFloorY - 12;
+    switch (r.s.kind) {
+      case 1:
+        glow(c, x, cy, 34, const C3(255, 120, 40), .7, add: true);
+        c.drawCircle(Offset(x, cy), 11, _fill(const Color(0xFFFF8A2A)));
+        c.drawCircle(Offset(x, cy), 6, _fill(const Color(0xFFFFE08A)));
+        break;
+      case 2:
+        c.drawRect(Rect.fromLTWH(x - 14, cy - 8, 28, 14), _fill(const Color(0xFF5A4A3A)));
+        c.drawRect(Rect.fromLTWH(x - 16, cy - 10, 32, 4), _fill(const Color(0xFF7A7F8C)));
+        c.drawCircle(Offset(x - 8, cy + 7), 4, _fill(const Color(0xFF222222)));
+        c.drawCircle(Offset(x + 8, cy + 7), 4, _fill(const Color(0xFF222222)));
+        break;
+      case 3:
+        c.drawCircle(Offset(x, cy), 12, _fill(const Color(0xFFEAF6FF)));
+        c.drawArc(Rect.fromCircle(center: Offset(x, cy), radius: 8), rot, 2, false, Paint()..color = const Color(0xFFA8CCE8)..style = PaintingStyle.stroke..strokeWidth = 1.5);
+        break;
+      case 4:
+        c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(x, cy), width: 24, height: 24), const Radius.circular(10)), _fill(const Color(0xFF6A4A24)));
+        c.drawArc(Rect.fromCircle(center: Offset(x, cy), radius: 7), rot, 3, false, Paint()..color = const Color(0xFF3A2410)..style = PaintingStyle.stroke..strokeWidth = 1.5);
+        break;
+      default:
+        c.drawCircle(Offset(x, cy), 12, _fill(const Color(0xFF7E8390)));
+        c.drawCircle(Offset(x, cy), 12, Paint()..color = const Color(0x66000000)..style = PaintingStyle.stroke..strokeWidth = 1.2);
+        c.drawLine(Offset(x, cy), Offset(x + math.cos(rot) * 10, cy + math.sin(rot) * 10), Paint()..color = const Color(0xFF454A56)..strokeWidth = 1.6);
+    }
+  }
+
+  void _spring(Canvas c, SpringPad s, double px) {
+    if (px < -40 || px > vw + 40) return;
+    final sq = s.anim > 0 ? 1 - s.anim / 14 : 0.0;
+    final capH = 12 - (s.anim > 7 ? 5 : 0) + sq * 0;
+    c.drawRect(Rect.fromLTWH(px + 8, kFloorY - 5, 10, 5), _fill(const Color(0xFFE8D8B8)));
+    final cap = Path()
+      ..moveTo(px - 2, kFloorY - 5)
+      ..quadraticBezierTo(px + 13, kFloorY - 5 - capH * 2.2, px + 28, kFloorY - 5)
+      ..close();
+    glow(c, px + 13, kFloorY - 8, 26, const C3(230, 150, 255), .35 + (s.anim > 0 ? .4 : 0), add: true);
+    c.drawPath(cap, _fill(const Color(0xFFB04AD8)));
+    c.drawCircle(Offset(px + 8, kFloorY - 10), 1.8, _fill(const Color(0xFFF0D0FF)));
+    c.drawCircle(Offset(px + 17, kFloorY - 12), 1.4, _fill(const Color(0xFFF0D0FF)));
+  }
+
+  void _keyDoor(Canvas c, KeyDoorO k, double cam) {
+    final dx = k.door.x - cam;
+    if (dx > -40 && dx < vw + 40) {
+      final off = k.open ? math.min(1.0, k.anim / 40) * 110 : 0.0;
+      if (!(k.open && k.anim >= 40)) {
+        c.save();
+        c.clipRect(Rect.fromLTWH(dx - 3, k.door.y - 4, 30, 114));
+        final y0 = k.door.y - off;
+        c.drawRect(Rect.fromLTWH(dx, y0, 22, 110), _fill(const Color(0xFF3A3F4A)));
+        for (int i = 0; i < 5; i++) {
+          c.drawRect(Rect.fromLTWH(dx + 2 + i * 4, y0, 2, 110), _fill(const Color(0xFF6A707E)));
+        }
+        c.drawRect(Rect.fromLTWH(dx, y0 + 50, 22, 4), _fill(const Color(0xFF555A66)));
+        if (!k.open) {
+          glow(c, dx + 11, y0 + 56, 18, const C3(255, 210, 90), .45, add: true);
+          c.drawCircle(Offset(dx + 11, y0 + 56), 4, _fill(const Color(0xFFFFC94A)));
+        }
+        c.restore();
+      }
+    }
+    if (!k.taken) {
+      final kx = k.s.kx - cam;
+      if (kx > -20 && kx < vw + 20) {
+        final ky = k.s.ky + math.sin(e.t / 14) * 2.5;
+        glow(c, kx, ky, 26, const C3(255, 220, 100), .8, add: true);
+        final kp = Paint()..color = const Color(0xFFFFD36A)..strokeWidth = 2.2..style = PaintingStyle.stroke;
+        c.drawCircle(Offset(kx - 4, ky), 4, kp);
+        c.drawLine(Offset(kx, ky), Offset(kx + 9, ky), kp);
+        c.drawLine(Offset(kx + 6, ky), Offset(kx + 6, ky + 4), kp);
+        c.drawLine(Offset(kx + 9, ky), Offset(kx + 9, ky + 4), kp);
+      }
+    }
+  }
+
+  void _vanish(Canvas c, VanishP v, double px) {
+    if (px > vw + 30 || px + v.w < -30) return;
+    final edge = th.edge;
+    final fill = Color.lerp(th.edge, Colors.black, .6)!;
+    double a = 1;
+    if (v.s.hidden) {
+      final d = ((e.p.x + 7) - (v.x + v.w / 2)).abs();
+      a = (1 - d / 150).clamp(0.0, 1.0).toDouble() * .9;
+      if (a < .08) return;
+    } else if (!v.solid) {
+      a = .12;
+    } else if (v.warn) {
+      a = (e.t ~/ 3) % 2 == 0 ? .35 : 1.0;
+    }
+    final r = RRect.fromRectAndRadius(Rect.fromLTWH(px, v.y, v.w, v.h), const Radius.circular(3));
+    c.drawRRect(r, _fill(fill.withOpacity(a)));
+    c.drawRRect(r, Paint()..color = edge.withOpacity(a)..style = PaintingStyle.stroke..strokeWidth = 1.4);
+    if (v.solid) glow(c, px + v.w / 2, v.y, v.w * .8, const C3(150, 200, 255), .2 * a, add: true);
+  }
+
+  void _ambushMark(Canvas c, Ambush a, double px) {
+    if (!a.s.marker || px < -30 || px > vw + 30) return;
+    final y = kFloorY;
+    if (!a.fired) {
+      c.drawRRect(RRect.fromRectAndCorners(Rect.fromLTWH(px - 8, y - 22, 16, 22), topLeft: const Radius.circular(8), topRight: const Radius.circular(8)), _fill(const Color(0xFF5A5F6C)));
+      c.drawLine(Offset(px, y - 17), Offset(px, y - 8), Paint()..color = const Color(0xFF2A2E38)..strokeWidth = 1.6);
+      c.drawLine(Offset(px - 4, y - 14), Offset(px + 4, y - 14), Paint()..color = const Color(0xFF2A2E38)..strokeWidth = 1.6);
+    } else if (a.anim < 50) {
+      final k = a.anim / 50;
+      glow(c, px, y - 10, 30 * (1 - k * .5), const C3(180, 160, 255), .6 * (1 - k), add: true);
+      c.drawOval(Rect.fromCenter(center: Offset(px, y - 1), width: 30, height: 5), _fill(const Color(0xFF2A2018)));
+    } else {
+      c.drawOval(Rect.fromCenter(center: Offset(px, y - 1), width: 30, height: 5), _fill(const Color(0xFF2A2018)));
+    }
+  }
+
+  void _shooter(Canvas c, Enemy en, double ex, bool flashed) {
+    final t = e.t;
+    final dir = en.d >= 0 ? 1.0 : -1.0;
+    final base = flashed ? Colors.white : const Color(0xFF3A3F4A);
+    c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(ex, en.y, 18, 13), const Radius.circular(3)), _fill(base));
+    c.drawRect(Rect.fromLTWH(dir > 0 ? ex + 12 : ex - 8, en.y + 4, 14, 4), _fill(flashed ? Colors.white : const Color(0xFF22252C)));
+    final charge = en.hopT < 20;
+    glow(c, ex + 9, en.y + 5, charge ? 18 : 10, const C3(255, 120, 60), charge ? .9 : .5, add: true);
+    c.drawCircle(Offset(ex + 9 + dir * 2, en.y + 5), 2.2, _fill(const Color(0xFFFF8A4A)));
+    c.drawCircle(Offset(ex + 4, en.y + 12 + math.sin(t / 8) * .3), 1.2, _fill(const Color(0xFF8A8F9C)));
+  }
+
+  void _wraith(Canvas c, Enemy en, double ex, bool flashed) {
+    final t = e.t;
+    final cx = ex + 9, cy = en.y + 6;
+    glow(c, cx, cy, 34, const C3(170, 150, 255), .4, add: true);
+    final body = Path()..moveTo(cx - 9, cy + 4);
+    body.quadraticBezierTo(cx - 12, cy - 14, cx, cy - 14);
+    body.quadraticBezierTo(cx + 12, cy - 14, cx + 9, cy + 4);
+    for (int i = 0; i < 4; i++) {
+      final bx = cx + 9 - i * 6.0;
+      body.quadraticBezierTo(bx - 1.5, cy + 12 + math.sin(t / 5 + i) * 3, bx - 3, cy + 4);
+    }
+    body.close();
+    c.drawPath(body, _fill(flashed ? Colors.white : const Color(0xBBB8B0F0)));
+    c.drawCircle(Offset(cx - 3, cy - 5), 1.8, _fill(const Color(0xFF241A4A)));
+    c.drawCircle(Offset(cx + 3, cy - 5), 1.8, _fill(const Color(0xFF241A4A)));
+  }
+
+  // ---------- الزعماء ذوو التصميم الخاص (كل زعيم بشكل وهجمات مختلفة)
+  void _bossGeneric(Canvas c) {
+    final b = e.boss!;
+    final cx = b.x + b.w / 2 - e.cam;
+    if (cx < -140 || cx > vw + 140) return;
+    if (b.st == 'dead' && b.dead > 140) return;
+    final t = e.t, k = b.kind;
+    final flashed = b.hit > 0;
+    final stun = b.st == 'stun';
+    double shk = 0;
+    if (b.st == 'charge' && b.t < 32) shk = math.sin(t * 1.8) * 2.2;
+    if (b.st == 'dead') shk = math.sin(t * 2.4) * 3;
+    final cy = b.y + b.h / 2;
+    final face = b.dir.toDouble();
+    final fade = b.st == 'dead' ? math.max(0.0, 1 - math.max(0, b.dead - 60) / 80) : 1.0;
+    // ألوان: [أساس، لون ثانوي، توهج]
+    const pal = <int, List<Color>>{
+      1: [Color(0xFF5A5F6B), Color(0xFF9AA0AE), Color(0xFF6AE0FF)],
+      3: [Color(0xFF5B2E6E), Color(0xFFB03AE0), Color(0xFFE0A0FF)],
+      4: [Color(0xFFE8E0C8), Color(0xFFB8B09A), Color(0xFF7CFF9A)],
+      5: [Color(0xFF4A1408), Color(0xFFB4400E), Color(0xFFFF6A1A)],
+      6: [Color(0xFF8ACBEA), Color(0xFFE8F6FF), Color(0xFFBDEFFF)],
+      7: [Color(0xFF1E2030), Color(0xFF3A3E58), Color(0xFF9ACBFF)],
+      8: [Color(0xFFB88A3A), Color(0xFF7A5A1E), Color(0xFFFFE27A)],
+      9: [Color(0xFF2AA0C0), Color(0xFF7FE6FF), Color(0xFFB0F4FF)],
+      10: [Color(0xFF120C1C), Color(0xFF2A1A3A), Color(0xFFB84AFF)],
+      11: [Color(0xFF2A1038), Color(0xFF6A2A8A), Color(0xFFFF4AB0)],
+    };
+    final pl = pal[k] ?? pal[11]!;
+    final base = flashed ? Colors.white : pl[0];
+    final sec = flashed ? Colors.white : pl[1];
+    final gl = pl[2];
+    final glc = C3(gl.red, gl.green, gl.blue);
+    c.saveLayer(Rect.fromLTWH(cx - 150, cy - 130, 300, 220), Paint()..color = Color.fromRGBO(255, 255, 255, fade));
+    c.translate(shk, 0);
+    c.drawOval(Rect.fromCenter(center: Offset(cx, kFloorY), width: 130, height: 12), _fill(const Color(0x66000000)));
+    final walk = (b.st == 'idle' || b.st == 'charge') ? math.sin(t / (b.st == 'charge' ? 2.5 : 7)) * 6 : 0.0;
+    double hx = cx + face * 24, hy = cy - 8;
+    final legP = Paint()..color = base..strokeWidth = 9..strokeCap = StrokeCap.round;
+    switch (k) {
+      case 1: // الحارس الحجري
+        c.drawLine(Offset(cx - 18, cy + 14), Offset(cx - 22 + walk, kFloorY - 2), legP);
+        c.drawLine(Offset(cx + 18, cy + 14), Offset(cx + 22 - walk, kFloorY - 2), legP);
+        c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(cx, cy - 4), width: 74, height: 60), const Radius.circular(14)), _fill(base));
+        c.drawCircle(Offset(cx - 48, cy + 6 + walk * .4), 13, _fill(sec));
+        c.drawCircle(Offset(cx + 48, cy + 6 - walk * .4), 13, _fill(sec));
+        c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(hx, cy - 34), width: 32, height: 24), const Radius.circular(6)), _fill(sec));
+        hy = cy - 34;
+        glow(c, cx, cy - 6, 26, glc, .6 + math.sin(t / 8) * .15, add: true);
+        c.drawRect(Rect.fromCenter(center: Offset(cx, cy - 6), width: 8, height: 22), Paint()..color = gl.withOpacity(.8)..blendMode = BlendMode.plus);
+        break;
+      case 3: // وحش الفطر
+        c.drawOval(Rect.fromCenter(center: Offset(cx, cy + 6), width: 56, height: 56), _fill(sec == Colors.white ? sec : const Color(0xFFD8C8E8)));
+        c.drawPath(
+            Path()
+              ..moveTo(cx - 62, cy - 12)
+              ..quadraticBezierTo(cx, cy - 78, cx + 62, cy - 12)
+              ..quadraticBezierTo(cx, cy - 2, cx - 62, cy - 12)
+              ..close(),
+            _fill(flashed ? Colors.white : pl[1]));
+        for (int i = 0; i < 5; i++) {
+          c.drawCircle(Offset(cx - 36 + i * 18, cy - 26 - (i % 2) * 8), 5, _fill(const Color(0xFFF0D0FF)));
+        }
+        c.drawLine(Offset(cx - 14, cy + 30), Offset(cx - 18 + walk, kFloorY - 2), legP..color = const Color(0xFFD8C8E8));
+        c.drawLine(Offset(cx + 14, cy + 30), Offset(cx + 18 - walk, kFloorY - 2), legP);
+        hx = cx + face * 8;
+        hy = cy + 6;
+        glow(c, cx, cy - 20, 60, glc, .25, add: true);
+        break;
+      case 4: // ملك الهياكل
+        c.drawLine(Offset(cx - 12, cy + 14), Offset(cx - 16 + walk, kFloorY - 2), legP..strokeWidth = 6);
+        c.drawLine(Offset(cx + 12, cy + 14), Offset(cx + 16 - walk, kFloorY - 2), legP);
+        c.drawOval(Rect.fromCenter(center: Offset(cx, cy - 2), width: 46, height: 50), _fill(base));
+        for (int i = 0; i < 4; i++) {
+          c.drawLine(Offset(cx - 18, cy - 14 + i * 9), Offset(cx + 18, cy - 14 + i * 9), Paint()..color = const Color(0xFF3A3A30)..strokeWidth = 2);
+        }
+        c.drawCircle(Offset(cx, cy - 36), 15, _fill(base));
+        c.drawPath(
+            Path()
+              ..moveTo(cx - 12, cy - 46)
+              ..lineTo(cx - 8, cy - 58)
+              ..lineTo(cx - 2, cy - 48)
+              ..lineTo(cx + 2, cy - 60)
+              ..lineTo(cx + 8, cy - 48)
+              ..lineTo(cx + 12, cy - 58)
+              ..lineTo(cx + 12, cy - 44)
+              ..close(),
+            _fill(const Color(0xFFE8B83A)));
+        c.drawLine(Offset(cx + face * 30, cy - 10), Offset(cx + face * 62, cy - 52 + walk), Paint()..color = const Color(0xFFD8DCE8)..strokeWidth = 4);
+        hx = cx;
+        hy = cy - 36;
+        break;
+      case 5: // تنين الحمم
+        c.drawPath(
+            Path()
+              ..moveTo(cx - face * 20, cy - 20)
+              ..lineTo(cx - face * 52, cy - 76 + walk)
+              ..lineTo(cx - face * 6, cy - 34)
+              ..lineTo(cx + face * 28, cy - 70 - walk)
+              ..lineTo(cx + face * 22, cy - 22)
+              ..close(),
+            _fill(sec));
+        c.drawLine(Offset(cx - 22, cy + 14), Offset(cx - 26 + walk, kFloorY - 2), legP);
+        c.drawLine(Offset(cx + 22, cy + 14), Offset(cx + 26 - walk, kFloorY - 2), legP);
+        c.drawOval(Rect.fromCenter(center: Offset(cx - face * 12, cy), width: 84, height: 50), _fill(base));
+        c.drawLine(Offset(cx - face * 50, cy + 6), Offset(cx - face * 80, cy + 22), Paint()..color = base..strokeWidth = 8..strokeCap = StrokeCap.round);
+        c.drawOval(Rect.fromCenter(center: Offset(cx + face * 32, cy - 14), width: 40, height: 28), _fill(base));
+        hx = cx + face * 38;
+        hy = cy - 16;
+        glow(c, hx + face * 18, hy + 6, 26, glc, b.st == 'rain' ? .9 : .4, add: true);
+        break;
+      case 6: // العملاق الجليدي
+        c.drawLine(Offset(cx - 20, cy + 12), Offset(cx - 24 + walk, kFloorY - 2), legP..strokeWidth = 12);
+        c.drawLine(Offset(cx + 20, cy + 12), Offset(cx + 24 - walk, kFloorY - 2), legP);
+        c.drawOval(Rect.fromCenter(center: Offset(cx, cy - 8), width: 80, height: 66), _fill(base));
+        c.drawCircle(Offset(cx - 52, cy + 4 + walk * .4), 14, _fill(sec));
+        c.drawCircle(Offset(cx + 52, cy + 4 - walk * .4), 14, _fill(sec));
+        for (int i = -1; i <= 1; i += 2) {
+          c.drawPath(
+              Path()
+                ..moveTo(cx + i * 22, cy - 30)
+                ..lineTo(cx + i * 30, cy - 62)
+                ..lineTo(cx + i * 38, cy - 28)
+                ..close(),
+              _fill(sec));
+        }
+        c.drawCircle(Offset(cx + face * 10, cy - 44), 17, _fill(base));
+        hx = cx + face * 10;
+        hy = cy - 44;
+        glow(c, cx, cy - 8, 70, glc, .15, add: true);
+        break;
+      case 7: // حارس المقبرة
+        c.drawPath(
+            Path()
+              ..moveTo(cx, cy - 52)
+              ..quadraticBezierTo(cx + 42, cy - 20, cx + 54, kFloorY - 2)
+              ..lineTo(cx - 54, kFloorY - 2)
+              ..quadraticBezierTo(cx - 42, cy - 20, cx, cy - 52)
+              ..close(),
+            _fill(base));
+        c.drawCircle(Offset(cx + face * 6, cy - 40), 14, _fill(const Color(0xFF0A0A12)));
+        c.drawLine(Offset(cx + face * 38, cy - 60), Offset(cx + face * 38, cy + 20), Paint()..color = const Color(0xFF6A5A3A)..strokeWidth = 3);
+        c.drawArc(Rect.fromLTWH(cx + face * 38 - (face > 0 ? 0 : 26), cy - 68, 26, 26), face > 0 ? -2.6 : -.5, 2.2, false, Paint()..color = const Color(0xFFD8DCE8)..style = PaintingStyle.stroke..strokeWidth = 3);
+        hx = cx + face * 6;
+        hy = cy - 40;
+        glow(c, cx, cy, 70, glc, .18, add: true);
+        break;
+      case 8: // الأسد الحجري
+        c.drawLine(Offset(cx - 22, cy + 14), Offset(cx - 26 + walk, kFloorY - 2), legP);
+        c.drawLine(Offset(cx + 22, cy + 14), Offset(cx + 26 - walk, kFloorY - 2), legP);
+        c.drawOval(Rect.fromCenter(center: Offset(cx - face * 16, cy + 2), width: 76, height: 46), _fill(base));
+        c.drawCircle(Offset(cx + face * 26, cy - 8), 30, _fill(sec));
+        c.drawCircle(Offset(cx + face * 28, cy - 6), 18, _fill(base));
+        hx = cx + face * 28;
+        hy = cy - 6;
+        glow(c, hx, hy, 34, glc, .25, add: true);
+        break;
+      case 9: // وحش الكريستال
+        for (int i = -3; i <= 3; i++) {
+          c.drawPath(
+              Path()
+                ..moveTo(cx + i * 14 - 8, cy + 20)
+                ..lineTo(cx + i * 12, cy - 28 - (3 - i.abs()) * 14)
+                ..lineTo(cx + i * 14 + 8, cy + 20)
+                ..close(),
+              _fill(i.isEven ? base : sec));
+        }
+        c.drawLine(Offset(cx - 18, cy + 16), Offset(cx - 22 + walk, kFloorY - 2), legP);
+        c.drawLine(Offset(cx + 18, cy + 16), Offset(cx + 22 - walk, kFloorY - 2), legP);
+        glow(c, cx, cy - 6, 44, glc, .6 + math.sin(t / 7) * .15, add: true);
+        hx = cx + face * 8;
+        hy = cy - 4;
+        break;
+      case 10: // ملك الظلام
+        c.drawPath(
+            Path()
+              ..moveTo(cx, cy - 56)
+              ..quadraticBezierTo(cx + 38, cy - 10, cx + 46, kFloorY - 2)
+              ..lineTo(cx - 46, kFloorY - 2)
+              ..quadraticBezierTo(cx - 38, cy - 10, cx, cy - 56)
+              ..close(),
+            _fill(base));
+        c.drawPath(
+            Path()
+              ..moveTo(cx - 14, cy - 56)
+              ..lineTo(cx - 10, cy - 72)
+              ..lineTo(cx - 3, cy - 60)
+              ..lineTo(cx, cy - 76)
+              ..lineTo(cx + 3, cy - 60)
+              ..lineTo(cx + 10, cy - 72)
+              ..lineTo(cx + 14, cy - 56)
+              ..close(),
+            _fill(const Color(0xFFB84AFF)));
+        for (int i = 0; i < 4; i++) {
+          glow(c, cx + math.sin(t / 20 + i * 1.6) * 36, kFloorY - 8 - i * 8, 18, glc, .3, add: true);
+        }
+        hx = cx + face * 4;
+        hy = cy - 44;
+        break;
+      default: // الزعيم الأخير
+        c.drawLine(Offset(cx - 20, cy + 14), Offset(cx - 24 + walk, kFloorY - 2), legP);
+        c.drawLine(Offset(cx + 20, cy + 14), Offset(cx + 24 - walk, kFloorY - 2), legP);
+        c.drawOval(Rect.fromCenter(center: Offset(cx, cy - 6), width: 84, height: 64), _fill(base));
+        for (int i = 0; i < 3; i++) {
+          c.drawArc(Rect.fromCenter(center: Offset(cx, cy - 6), width: 100 + i * 24, height: 76 + i * 20), t / (14.0 + i * 6) + i * 2, 1.7, false, Paint()..color = gl.withOpacity(.7)..style = PaintingStyle.stroke..strokeWidth = 2..blendMode = BlendMode.plus);
+        }
+        c.drawPath(
+            Path()
+              ..moveTo(cx - 16, cy - 36)
+              ..lineTo(cx - 12, cy - 54)
+              ..lineTo(cx - 4, cy - 40)
+              ..lineTo(cx, cy - 58)
+              ..lineTo(cx + 4, cy - 40)
+              ..lineTo(cx + 12, cy - 54)
+              ..lineTo(cx + 16, cy - 36)
+              ..close(),
+            _fill(const Color(0xFFFF4AB0)));
+        hx = cx + face * 8;
+        hy = cy - 14;
+        glow(c, cx, cy - 6, 80, glc, .22, add: true);
+    }
+    // العيون
+    final ec = b.enraged ? const C3(255, 60, 40) : glc;
+    for (int i = 0; i < 2; i++) {
+      final ex2 = hx + face * 5 + (i - .5) * 9;
+      glow(c, ex2, hy, 8, ec, .9, add: true);
+      c.drawCircle(Offset(ex2, hy), 2.2, _fill(Color.fromRGBO(ec.r, ec.g, ec.b, 1)));
+    }
+    if (b.st == 'rain' || b.st == 'ring') glow(c, cx, cy - 10, 60 + math.sin(t / 3) * 8, glc, .35, add: true);
+    if (b.st == 'charge' && b.t < 32) glow(c, cx, cy, 70, const C3(255, 60, 40), .15 + (b.t % 8) * .03, add: true);
+    if (b.enraged && b.st != 'dead') glow(c, cx, cy, 80, const C3(255, 50, 30), .18 + math.sin(t / 6) * .05, add: true);
+    if (stun) {
+      for (int i = 0; i < 4; i++) {
+        final ang = t / 8 + i * math.pi / 2;
+        c.drawCircle(Offset(hx + math.cos(ang) * 16, hy - 24 + math.sin(ang) * 5), 2.2, Paint()..color = const Color(0xFFFFE27A)..blendMode = BlendMode.plus);
+      }
+    }
+    c.restore();
+  }
+
   void _projs(Canvas c) {
     final cam = e.cam;
     for (final q in e.projs) {
       final x = q.x - cam;
       if (x < -20 || x > vw + 20) continue;
-      if (q.kind == 0) {
+      if (q.kind == 2) {
+        glow(c, x, q.y, 14, const C3(255, 150, 70), .8, add: true);
+        c.drawCircle(Offset(x, q.y), 3.6, _fill(const Color(0xFFFFE0A0)));
+        c.drawCircle(Offset(x, q.y), 2, _fill(const Color(0xFFFFFFFF)));
+        c.drawLine(Offset(x, q.y), Offset(x - q.vx * 4, q.y - q.vy * 4), Paint()..color = const Color(0x88FFB347)..strokeWidth = 1.6);
+      } else if (q.kind == 0) {
         glow(c, x, q.y, 12, const C3(200, 255, 190), .7, add: true);
         c.drawCircle(Offset(x, q.y), 3.4, _fill(const Color(0xFFE8FFE0)));
         c.drawLine(Offset(x, q.y), Offset(x - q.vx * 4, q.y - q.vy * 4), Paint()..color = const Color(0x88FFFFFF)..strokeWidth = 1);
@@ -660,6 +1358,12 @@ class GamePainter extends CustomPainter {
 
   void _hud(Canvas c) {
     final p = e.p, t = e.t;
+    if (e.kdoors.any((k) => k.taken && !k.open)) {
+      glow(c, 22, 46, 16, const C3(255, 220, 100), .6, add: true);
+      c.drawCircle(const Offset(18, 46), 4, Paint()..color = const Color(0xFFFFD36A)..style = PaintingStyle.stroke..strokeWidth = 2);
+      c.drawLine(const Offset(22, 46), const Offset(34, 46), Paint()..color = const Color(0xFFFFD36A)..strokeWidth = 2);
+      c.drawLine(const Offset(30, 46), const Offset(30, 50), Paint()..color = const Color(0xFFFFD36A)..strokeWidth = 2);
+    }
     for (int i = 0; i < e.maxHp; i++) {
       final on = i < p.hp;
       final x = 20.0 + i * 19, y = 24.0;

@@ -86,6 +86,10 @@ class _AppShellState extends State<AppShell> {
     if (eng.phase == Phase.won && !rewarded && cfg != null && save != null) {
       rewarded = true;
       lastGain = save!.complete(cfg!.world, cfg!.index, eng.collected, eng.playFrames ~/ 60);
+      if (eng.deaths == 0) {
+        save!.coins += 5; // مكافأة إنهاء المرحلة دون خسارة حياة
+        lastGain += 5;
+      }
       save!.save();
       if (mounted) setState(() {});
     }
@@ -671,7 +675,12 @@ class _PlayViewState extends State<_PlayView> with SingleTickerProviderStateMixi
         final boss = widget.cfg.boss != null;
         return _panel(children: [
           _title(boss ? 'سقط ${widget.cfg.boss!.name}!' : 'وصلت للبوابة!', size: 30),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            for (int i = 0; i < 3; i++) Icon(i < eng.stars ? Icons.star_rounded : Icons.star_border_rounded, color: const Color(0xFFFFD27A), size: 34),
+          ]),
+          if (eng.deaths == 0) const Padding(padding: EdgeInsets.only(top: 4), child: Text('مكافأة: بدون خسارة حياة +5', style: TextStyle(color: Color(0xFFFFE3A8), fontSize: 13))),
+          const SizedBox(height: 10),
           Text('الجمرات: ${eng.collected} / ${eng.totalEmbers}', style: const TextStyle(color: _ice, fontSize: 17)),
           const SizedBox(height: 4),
           Text('الأعداء: ${eng.kills}      الوقت: $time', style: const TextStyle(color: _ice, fontSize: 17)),

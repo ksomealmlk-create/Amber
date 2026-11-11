@@ -1,5 +1,6 @@
 // نظام المراحل: ثوابت، ثيمات العوالم، LevelConfig، ومصنع المراحل
 import 'dart:ui' show Color;
+import 'levelgen.dart';
 
 const double kW = 360;
 const double kH = 500;
@@ -255,6 +256,66 @@ class BossSpec {
   const BossSpec(this.name, this.kind, this.x, this.trigger, this.hp);
 }
 
+// ---------- مواصفات العناصر التفاعلية الجديدة
+/// عنصر قابل للتكسير: kind 0 صندوق، 1 برميل، 2 صخرة، 3 بلورة/جليد، 4 جدار سري
+class BreakSpec {
+  final double x, y, w, h;
+  final int kind;
+  final bool drop;
+  const BreakSpec(this.kind, this.x, this.y, this.w, this.h, [this.drop = true]);
+}
+
+/// فخ زمني: 0 سلك كهربائي، 1 أشواك تظهر، 2 نافورة نار، 3 سحابة سامة، 4 شعاع ضوء، 5 نبات يعضّ، 6 نصل متأرجح
+class TimedSpec {
+  final int kind;
+  final double x, y, w, h, period, on, phase;
+  const TimedSpec(this.kind, this.x, this.y, this.w, this.h, this.period, this.on, this.phase);
+}
+
+/// جسم يسقط من السقف مع تحذير: 0 صخرة، 1 جليد، 2 صخرة نارية، 3 غصن، 4 شظية كريستال، 5 كتلة فطر
+class FallSpec {
+  final int kind;
+  final double x, period, phase;
+  const FallSpec(this.kind, this.x, this.period, this.phase);
+}
+
+/// جسم يتدحرج على الأرض من x1 إلى x0: 0 صخرة، 1 كرة نار، 2 عربة منجم، 3 كرة ثلج، 4 جذع
+class RollSpec {
+  final int kind;
+  final double x0, x1, period, phase;
+  const RollSpec(this.kind, this.x0, this.x1, this.period, this.phase);
+}
+
+class SpringSpec {
+  final double x, y;
+  const SpringSpec(this.x, this.y);
+}
+
+class KeyDoorSpec {
+  final double kx, ky, dx;
+  const KeyDoorSpec(this.kx, this.ky, this.dx);
+}
+
+/// منصة تختفي وتظهر (period > 0) أو منصة مخفية تنكشف عند الاقتراب (hidden)
+class VanishSpec {
+  final double x, y, w, period, phase;
+  final bool hidden;
+  const VanishSpec(this.x, this.y, this.w, this.period, this.phase, [this.hidden = false]);
+}
+
+class SlipSpec {
+  final double x, w;
+  const SlipSpec(this.x, this.w);
+}
+
+/// كمين: يخرج عدو عندما يقترب اللاعب (kind 0 زاحف من قبر، 4 شبح)
+class AmbushSpec {
+  final double x;
+  final int kind;
+  final bool marker;
+  const AmbushSpec(this.x, this.kind, [this.marker = true]);
+}
+
 class LevelConfig {
   final int world, index;
   final String name;
@@ -271,6 +332,15 @@ class LevelConfig {
   final BossSpec? boss;
   final int seed;
   final bool classic;
+  final List<BreakSpec> breaks;
+  final List<TimedSpec> timed;
+  final List<FallSpec> falls;
+  final List<RollSpec> rolls;
+  final List<SpringSpec> springs;
+  final List<KeyDoorSpec> keyDoors;
+  final List<VanishSpec> vanish;
+  final List<SlipSpec> slips;
+  final List<AmbushSpec> ambush;
   late final List<Box> solids;
 
   LevelConfig({
@@ -293,12 +363,21 @@ class LevelConfig {
     this.boss,
     this.seed = 1,
     this.classic = false,
+    this.breaks = const [],
+    this.timed = const [],
+    this.falls = const [],
+    this.rolls = const [],
+    this.springs = const [],
+    this.keyDoors = const [],
+    this.vanish = const [],
+    this.slips = const [],
+    this.ambush = const [],
   }) {
     solids = [...grounds, ...platforms, ...extra, Box(length - 10, 0, 10, kH), Box(-10, 0, 10, kH)];
   }
 
   String get id => 'w${world}l$index';
-  int get totalEmbers => embers.length + chests.length * 3 + (boss != null ? 8 : 0);
+  int get totalEmbers => embers.length + chests.length * 3 + (boss != null ? 8 : 0) + breaks.where((b) => b.drop).length + keyDoors.length * 2;
 }
 
 // ---------- معلومات العوالم لشاشة الاختيار
@@ -313,7 +392,7 @@ class WorldInfo {
 
 class Worlds {
   static const List<WorldInfo> all = [
-    WorldInfo(1, 'المغارة المنسية', 'كهف مظلم تسكنه الجمرات والأعداء الزاحفة', '—', true,
+    WorldInfo(1, 'المغارة المنسية', 'كهف مظلم تسكنه الجمرات والأعداء الزاحفة', 'الحارس الحجري', true,
         [Color(0xFF03050B), Color(0xFF12335A), Color(0xFF1B4A6E)], Color(0xFF1A2A4A)),
     WorldInfo(2, 'الغابة الملعونة', 'أشجار ضخمة وعناكب سامة وجسور معلقة', 'ملك العناكب', true,
         [Color(0xFF020806), Color(0xFF0C3523), Color(0xFF16553A)], Color(0xFF2A1F14)),
@@ -357,8 +436,52 @@ class LevelFactory {
   }
 
   static LevelConfig build(int world, int idx) {
-    if (world == 1 && idx == 1) return _level1();
-    return _generate(world, idx);
+    final cfg = (world == 1 && idx == 1) ? _level1() : LevelGen.build(world, idx);
+    return _solidFloor(cfg);
+  }
+
+  /// أرضية كاملة بلا فجوات: كل قطعة أرض تُمدّ حتى بداية التي تليها (والأخيرة حتى نهاية المرحلة).
+  /// مواضع القطع الأصلية تبقى كما هي فتبقى نقاط الحفظ تعمل.
+  static LevelConfig _solidFloor(LevelConfig c) {
+    final gs = [...c.grounds]..sort((a, b) => a.x.compareTo(b.x));
+    final filled = <Box>[];
+    for (int i = 0; i < gs.length; i++) {
+      final g = gs[i];
+      final end = i + 1 < gs.length ? gs[i + 1].x : c.length;
+      filled.add(Box(g.x, g.y, (end > g.x + g.w ? end : g.x + g.w) - g.x, g.h));
+    }
+    // منصات الانهيار كانت فوق الفجوات؛ ترتفع لتصبح جسوراً علوية فوق الأرضية الكاملة
+    final crumbs = [for (final k in c.crumbs) CrumbleSpec(k.x, k.y >= kFloorY ? 380.0 : k.y, k.w)];
+    return LevelConfig(
+      world: c.world,
+      index: c.index,
+      name: c.name,
+      length: c.length,
+      theme: c.theme,
+      grounds: filled,
+      platforms: c.platforms,
+      extra: c.extra,
+      movs: c.movs,
+      crumbs: crumbs,
+      hazards: c.hazards,
+      enemies: c.enemies,
+      embers: c.embers,
+      chests: c.chests,
+      goalX: c.goalX,
+      goalY: c.goalY,
+      boss: c.boss,
+      seed: c.seed,
+      classic: c.classic,
+      breaks: c.breaks,
+      timed: c.timed,
+      falls: c.falls,
+      rolls: c.rolls,
+      springs: c.springs,
+      keyDoors: c.keyDoors,
+      vanish: c.vanish,
+      slips: c.slips,
+      ambush: c.ambush,
+    );
   }
 
   // المرحلة الأولى الأصلية كما هي
