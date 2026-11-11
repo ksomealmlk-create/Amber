@@ -607,12 +607,12 @@ class GamePainter extends CustomPainter {
     if (p.inv > 0 && t % 6 < 3) return;
     const ch = 39.3;
     const k = ch / 448.0;
-    const dw = 188 * k;
+    const dw = 400 * k;
     Offset pv(double x, double y) => Offset(-dw / 2 + x * k, -ch + y * k);
-    final shN = pv(116.7, 164.3), shF = pv(36.3, 164.3);
-    final hipN = pv(85.3, 257.6), hipF = pv(67.6, 257.6);
-    const legScale = 0.82; // تقصير الرجلين قليلاً
-    const drop = (448 - 257.6) * k * (1 - legScale);
+    final shN = pv(170.4, 156.3), shF = pv(246.1, 156.3);
+    final hipN = pv(174.8, 272.9), hipF = pv(243.6, 272.9);
+    const legScale = 1.0;
+    const drop = (448 - 272.9) * k * (1 - legScale);
     final paint = Paint()..filterQuality = FilterQuality.medium;
     void layer(String n, {double ang = 0, Offset piv = Offset.zero, double dy = 0, double sy = 1}) {
       final img = a.sp[n]!;
