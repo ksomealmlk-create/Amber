@@ -5,6 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class SaveData {
   static const _key = 'amber_save_v1';
   static const int levelsPerWorld = 10;
+  /// للتجربة: يفتح كل العوالم والمراحل ويعطي رصيداً للمتجر. غيّرها إلى false عند النشر.
+  static const bool unlockAll = true;
 
   final Set<String> done = {};
   final Map<String, int> bestEmbers = {};
@@ -32,6 +34,7 @@ class SaveData {
         d.last = (m['last'] ?? 'w1l1').toString();
       }
     } catch (_) {}
+    if (unlockAll && d.coins < 5000) d.coins = 5000;
     return d;
   }
 
@@ -56,6 +59,7 @@ class SaveData {
   bool levelDone(int w, int l) => done.contains(id(w, l));
 
   bool levelUnlocked(int w, int l) {
+    if (unlockAll) return true;
     if (w == 1 && l == 1) return true;
     if (l > 1) return levelDone(w, l - 1);
     return levelDone(w - 1, levelsPerWorld);

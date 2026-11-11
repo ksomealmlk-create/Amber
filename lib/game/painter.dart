@@ -611,14 +611,17 @@ class GamePainter extends CustomPainter {
     Offset pv(double x, double y) => Offset(-dw / 2 + x * k, -ch + y * k);
     final shN = pv(116.7, 164.3), shF = pv(36.3, 164.3);
     final hipN = pv(85.3, 257.6), hipF = pv(67.6, 257.6);
+    const legScale = 0.82; // تقصير الرجلين قليلاً
+    const drop = (448 - 257.6) * k * (1 - legScale);
     final paint = Paint()..filterQuality = FilterQuality.medium;
-    void layer(String n, {double ang = 0, Offset piv = Offset.zero, double dy = 0}) {
+    void layer(String n, {double ang = 0, Offset piv = Offset.zero, double dy = 0, double sy = 1}) {
       final img = a.sp[n]!;
       c.save();
       c.translate(0, dy);
-      if (ang != 0) {
+      if (ang != 0 || sy != 1) {
         c.translate(piv.dx, piv.dy);
         c.rotate(ang);
+        c.scale(1, sy);
         c.translate(-piv.dx, -piv.dy);
       }
       c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), const Rect.fromLTWH(-dw / 2, -ch, dw, ch), paint);
@@ -631,14 +634,14 @@ class GamePainter extends CustomPainter {
     c.rotate(p.lean);
     // ظل خفيف تحت القدمين
     c.drawOval(Rect.fromCenter(center: const Offset(0, 0.5), width: 14, height: 3), _fill(const Color(0x55000000)));
-    layer('hero_armF', ang: p.aF, piv: shF, dy: p.bob);
-    layer('hero_legF', ang: p.lF, piv: hipF);
-    layer('hero_legN', ang: p.lN, piv: hipN);
-    layer('hero_body', dy: p.bob);
-    layer('hero_armN', ang: p.aN, piv: shN, dy: p.bob);
-    layer('hero_weapon', ang: p.aN, piv: shN, dy: p.bob);
+    layer('hero_armF', ang: p.aF, piv: shF, dy: p.bob + drop);
+    layer('hero_legF', ang: p.lF, piv: hipF, dy: drop, sy: legScale);
+    layer('hero_legN', ang: p.lN, piv: hipN, dy: drop, sy: legScale);
+    layer('hero_body', dy: p.bob + drop);
+    layer('hero_armN', ang: p.aN, piv: shN, dy: p.bob + drop);
+    layer('hero_weapon', ang: p.aN, piv: shN, dy: p.bob + drop);
     // الفانوس في اليد
-    final hand = Offset(shF.dx - math.sin(p.aF) * 12.0, shF.dy + p.bob + math.cos(p.aF) * 12.0);
+    final hand = Offset(shF.dx - math.sin(p.aF) * 12.0, shF.dy + p.bob + drop + math.cos(p.aF) * 12.0);
     final lp = hand + const Offset(1.6, 1.8);
     c.drawLine(hand, lp, Paint()..color = const Color(0xFF1A1424)..strokeWidth = 0.8);
     glow(c, lp.dx, lp.dy + 1, 10, const C3(255, 190, 90), .9, add: true);

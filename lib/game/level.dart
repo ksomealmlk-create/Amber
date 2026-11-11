@@ -89,6 +89,102 @@ class WorldTheme {
 
   static const WorldTheme cave = WorldTheme();
 
+  static final Map<int, WorldTheme> _cache = {};
+  static WorldTheme of(int w) {
+    if (w == 1) return cave;
+    if (w == 2) return forest;
+    return _cache.putIfAbsent(w, () => _make(w));
+  }
+
+  static List<int> _mx(List<int> a, List<int> b, double t) => [for (int i = 0; i < 3; i++) (a[i] + (b[i] - a[i]) * t).round()];
+  static Color _c(List<int> v, [double a = 1]) => Color.fromRGBO(v[0], v[1], v[2], a);
+  static C3 _k(List<int> v) => C3(v[0], v[1], v[2]);
+
+  static WorldTheme _make(int w) {
+    // s0,s1,s2 = ألوان السماء، acc = لون التوهج، hue/sat للجدران
+    late List<int> s0, s1, s2, acc;
+    double hue = 220, sat = .3, dark = .55;
+    WallStyle wall = WallStyle.bricks;
+    bool soil = false;
+    int towers = 0;
+    List<int>? hz;
+    switch (w) {
+      case 3:
+        s0 = [10, 6, 20]; s1 = [42, 16, 72]; s2 = [90, 42, 122]; acc = [200, 120, 255];
+        hue = 280; sat = .35; soil = true; dark = .52;
+        break;
+      case 4:
+        s0 = [8, 8, 10]; s1 = [38, 38, 46]; s2 = [62, 62, 74]; acc = [190, 200, 220];
+        hue = 230; sat = .08; towers = 4;
+        break;
+      case 5:
+        s0 = [20, 4, 4]; s1 = [90, 20, 8]; s2 = [180, 64, 14]; acc = [255, 140, 60];
+        hue = 8; sat = .5; dark = .45; hz = [255, 110, 30];
+        break;
+      case 6:
+        s0 = [6, 16, 28]; s1 = [30, 74, 112]; s2 = [124, 184, 224]; acc = [170, 230, 255];
+        hue = 200; sat = .45; dark = .42;
+        break;
+      case 7:
+        s0 = [5, 6, 10]; s1 = [26, 30, 46]; s2 = [52, 60, 84]; acc = [150, 175, 160];
+        hue = 240; sat = .15; wall = WallStyle.trunks; soil = true;
+        break;
+      case 8:
+        s0 = [16, 12, 4]; s1 = [62, 48, 16]; s2 = [122, 100, 34]; acc = [255, 215, 120];
+        hue = 40; sat = .4; dark = .5;
+        break;
+      case 9:
+        s0 = [4, 8, 14]; s1 = [14, 58, 80]; s2 = [34, 160, 180]; acc = [90, 235, 255];
+        hue = 190; sat = .5; dark = .5;
+        break;
+      case 10:
+        s0 = [2, 2, 4]; s1 = [20, 16, 30]; s2 = [42, 32, 64]; acc = [170, 130, 230];
+        hue = 270; sat = .2; dark = .6; towers = 4;
+        break;
+      default:
+        s0 = [10, 4, 16]; s1 = [58, 16, 80]; s2 = [180, 48, 140]; acc = [255, 110, 210];
+        hue = 320; sat = .4; dark = .52;
+        break;
+    }
+    const white = [255, 255, 255];
+    const black = [0, 0, 0];
+    return WorldTheme(
+      key: 'w$w',
+      sky: [_c(s0), _c(_mx(s0, s1, .6)), _c(s1), _c(s2)],
+      blobA: _k(acc),
+      blobB: _k(_mx(acc, s2, .5)),
+      moonGlow: _k(_mx(acc, white, .5)),
+      moonA: _c(_mx(acc, white, .9)),
+      moonB: _c(_mx(acc, white, .6)),
+      mt1: [_c(_mx(s1, s0, .4)), _c(_mx(s0, black, .2)), _c(acc, .32)],
+      mt2: [_c(_mx(s0, s1, .3)), _c(_mx(s0, black, .4)), _c(acc, .25)],
+      towers1: towers,
+      fog: _k(_mx(acc, s2, .4)),
+      orb: _k(acc),
+      rune: _k(_mx(acc, white, .3)),
+      wall: wall,
+      wallHue: hue,
+      wallSat: sat,
+      wallBase: _c(_mx(s0, black, .3)),
+      archStroke: _c(_mx(s1, acc, .4)),
+      tintTop: _c(acc, .2),
+      tintBottom: _c(s0, .55),
+      soil: soil,
+      gtHue: hue,
+      gtSat: sat,
+      edge: _c(_mx(acc, s1, .5)),
+      edgeGlow: _c(acc, .3),
+      grass1: _c(_mx(acc, s0, .6)),
+      grass2: _c(_mx(acc, s0, .8)),
+      grassTip: _c(acc, .8),
+      spikes: [_c(_mx(s0, s1, .25)), _c(_mx(s0, s1, .4)), _c(_mx(s0, black, .2))],
+      dark: dark,
+      hazA: _c(_mx(s1, black, .5)),
+      hazB: _c(hz ?? acc),
+      wood: false,
+    );
+  }
+
   static const WorldTheme forest = WorldTheme(
     key: 'forest',
     sky: [Color(0xFF020806), Color(0xFF06180F), Color(0xFF0C3523), Color(0xFF16553A)],
@@ -221,23 +317,23 @@ class Worlds {
         [Color(0xFF03050B), Color(0xFF12335A), Color(0xFF1B4A6E)], Color(0xFF1A2A4A)),
     WorldInfo(2, 'الغابة الملعونة', 'أشجار ضخمة وعناكب سامة وجسور معلقة', 'ملك العناكب', true,
         [Color(0xFF020806), Color(0xFF0C3523), Color(0xFF16553A)], Color(0xFF2A1F14)),
-    WorldInfo(3, 'كهف الفطر السام', 'فطر عملاق مضيء وأرضيات سامة', 'وحش الفطر العملاق', false,
+    WorldInfo(3, 'كهف الفطر السام', 'فطر عملاق مضيء وأرضيات سامة', 'وحش الفطر العملاق', true,
         [Color(0xFF0A0614), Color(0xFF2A1048), Color(0xFF5A2A7A)], Color(0xFF2A1840)),
-    WorldInfo(4, 'قلعة الهياكل العظمية', 'أعمدة وتماثيل وأفخاخ وسهام', 'ملك الهياكل العظمية', false,
+    WorldInfo(4, 'قلعة الهياكل العظمية', 'أعمدة وتماثيل وأفخاخ وسهام', 'ملك الهياكل العظمية', true,
         [Color(0xFF080808), Color(0xFF26262E), Color(0xFF3E3E4A)], Color(0xFF2A2A34)),
-    WorldInfo(5, 'مملكة الحمم', 'براكين وحمم متحركة وصخور متساقطة', 'تنين الحمم', false,
+    WorldInfo(5, 'مملكة الحمم', 'براكين وحمم متحركة وصخور متساقطة', 'تنين الحمم', true,
         [Color(0xFF140404), Color(0xFF5A1408), Color(0xFFB4400E)], Color(0xFF3A1208)),
-    WorldInfo(6, 'مملكة الجليد', 'كهوف جليدية وأرضيات زلقة وعواصف ثلج', 'العملاق الجليدي', false,
+    WorldInfo(6, 'مملكة الجليد', 'كهوف جليدية وأرضيات زلقة وعواصف ثلج', 'العملاق الجليدي', true,
         [Color(0xFF06101C), Color(0xFF1E4A70), Color(0xFF7CB8E0)], Color(0xFF2A4A68)),
-    WorldInfo(7, 'المقبرة القديمة', 'قبور وأشباح وضباب كثيف', 'حارس المقبرة', false,
+    WorldInfo(7, 'المقبرة القديمة', 'قبور وأشباح وضباب كثيف', 'حارس المقبرة', true,
         [Color(0xFF05060A), Color(0xFF1A1E2E), Color(0xFF343C54)], Color(0xFF1E2230)),
-    WorldInfo(8, 'معبد الأسرار', 'تماثيل متحركة وألغاز ومفاتيح', 'الأسد الحجري', false,
+    WorldInfo(8, 'معبد الأسرار', 'تماثيل متحركة وألغاز ومفاتيح', 'الأسد الحجري', true,
         [Color(0xFF100C04), Color(0xFF3E3010), Color(0xFF7A6422)], Color(0xFF3A2E14)),
-    WorldInfo(9, 'منجم الكريستال', 'بلورات مضيئة وعربات وجسور تنهار', 'وحش الكريستال', false,
+    WorldInfo(9, 'منجم الكريستال', 'بلورات مضيئة وعربات وجسور تنهار', 'وحش الكريستال', true,
         [Color(0xFF04080E), Color(0xFF0E3A50), Color(0xFF22A0B4)], Color(0xFF123444)),
-    WorldInfo(10, 'قلعة الظلام', 'قلعة ضخمة وغرف سرية وفخاخ متطورة', 'ملك الظلام', false,
+    WorldInfo(10, 'قلعة الظلام', 'قلعة ضخمة وغرف سرية وفخاخ متطورة', 'ملك الظلام', true,
         [Color(0xFF020204), Color(0xFF14101E), Color(0xFF2A2040)], Color(0xFF181424)),
-    WorldInfo(11, 'العالم الأخير', 'تحديات صعبة وزعيم متعدد المراحل', 'الزعيم الأخير', false,
+    WorldInfo(11, 'العالم الأخير', 'تحديات صعبة وزعيم متعدد المراحل', 'الزعيم الأخير', true,
         [Color(0xFF0A0410), Color(0xFF3A1050), Color(0xFFB4308C)], Color(0xFF2A1038)),
   ];
   static WorldInfo of(int id) => all[id - 1];
@@ -254,7 +350,11 @@ class LevelFactory {
     'الغابة الهامسة', 'المستنقع الأخضر', 'الجسور المعلقة', 'وكر العناكب', 'عرين ملك العناكب'
   ];
 
-  static String nameOf(int w, int i) => (w == 2 ? _names2 : _names1)[i - 1];
+  static String nameOf(int w, int i) {
+    if (w == 1) return _names1[i - 1];
+    if (w == 2) return _names2[i - 1];
+    return '${Worlds.of(w).name} $i';
+  }
 
   static LevelConfig build(int world, int idx) {
     if (world == 1 && idx == 1) return _level1();
@@ -303,7 +403,7 @@ class LevelFactory {
   }
 
   static LevelConfig _generate(int world, int idx) {
-    final theme = world == 2 ? WorldTheme.forest : WorldTheme.cave;
+    final theme = WorldTheme.of(world);
     final r = mkr(world * 7919 + idx * 104729 + 13);
     final d = ((idx - 1) / 9.0) * 0.8 + (world - 1) * 0.25;
     if (world == 2 && idx == 10) return _bossArena(world, idx, theme);
@@ -322,7 +422,7 @@ class LevelFactory {
     void ember(double x, double y) => embers.add([x, y]);
     int pickKind() {
       final q = r();
-      if (world == 2) return q < .5 ? 2 : (q < .7 ? 0 : 1);
+      if (world == 2 || world == 3 || world == 9) return q < .5 ? 2 : (q < .7 ? 0 : 1);
       return q < .75 ? 0 : 1;
     }
 

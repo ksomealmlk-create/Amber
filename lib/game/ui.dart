@@ -334,6 +334,7 @@ class _AppShellState extends State<AppShell> {
                           borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(value: done / SaveData.levelsPerWorld, minHeight: 6, backgroundColor: const Color(0x33FFFFFF), color: _gold),
                         ),
+                        if (w.id > 2) const Padding(padding: EdgeInsets.only(top: 4), child: Text('نسخة تجريبية: الزعيم الخاص قريباً', style: TextStyle(color: Color(0xFFFFB347), fontSize: 11))),
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerLeft,
@@ -626,11 +627,11 @@ class _PlayViewState extends State<_PlayView> with SingleTickerProviderStateMixi
 
   Widget _actions() {
     return Row(children: [
-      _PadBtn(icon: Icons.keyboard_double_arrow_right_rounded, onChange: (v) => eng.dash = v, size: 60),
-      const SizedBox(width: 10),
-      _PadBtn(icon: Icons.local_fire_department_rounded, onChange: (v) => eng.atk = v, size: 66, accent: true),
-      const SizedBox(width: 10),
-      _PadBtn(icon: Icons.keyboard_arrow_up_rounded, onChange: (v) => eng.jump = v, size: 74),
+      _PadBtn(icon: Icons.keyboard_double_arrow_right_rounded, onChange: (v) => eng.dash = v, size: 62),
+      const SizedBox(width: 2),
+      _PadBtn(icon: Icons.local_fire_department_rounded, onChange: (v) => eng.atk = v, size: 70, accent: true),
+      const SizedBox(width: 2),
+      _PadBtn(icon: Icons.keyboard_arrow_up_rounded, onChange: (v) => eng.jump = v, size: 82),
     ]);
   }
 
@@ -730,22 +731,29 @@ class _PadBtnState extends State<_PadBtn> {
   bool on = false;
   void _set(bool v) {
     if (on == v) return;
-    setState(() => on = v);
     widget.onChange(v);
+    setState(() => on = v);
   }
 
   @override
   Widget build(BuildContext context) {
+    // منطقة اللمس أكبر من الشكل المرئي لسهولة الضغط
     return Listener(
       behavior: HitTestBehavior.opaque,
       onPointerDown: (_) => _set(true),
       onPointerUp: (_) => _set(false),
       onPointerCancel: (_) => _set(false),
-      child: Container(
-        width: widget.size,
-        height: widget.size,
-        decoration: _glass(on, widget.accent),
-        child: Icon(widget.icon, color: widget.accent ? const Color(0xFFFFC27A) : _ice, size: widget.size * .55),
+      child: Padding(
+        padding: const EdgeInsets.all(7),
+        child: Transform.scale(
+          scale: on ? .93 : 1,
+          child: Container(
+            width: widget.size,
+            height: widget.size,
+            decoration: _glass(on, widget.accent),
+            child: Icon(widget.icon, color: widget.accent ? const Color(0xFFFFC27A) : _ice, size: widget.size * .55),
+          ),
+        ),
       ),
     );
   }
@@ -760,23 +768,26 @@ class _DPad extends StatefulWidget {
 
 class _DPadState extends State<_DPad> {
   int dir = 0; // -1 يسار، 1 يمين
-  static const double w = 150, h = 70;
+  static const double w = 176, h = 78, pad = 14;
 
   void _upd(Offset p) {
+    final mid = (w + 2 * pad) / 2;
     int d = 0;
-    if (p.dx < w * .5) {
+    if (p.dx < mid - 4) {
       d = -1;
-    } else {
+    } else if (p.dx > mid + 4) {
       d = 1;
+    } else {
+      d = dir == 0 ? 1 : dir;
     }
     _apply(d);
   }
 
   void _apply(int d) {
     if (d == dir) return;
-    setState(() => dir = d);
     widget.eng.left = d < 0;
     widget.eng.right = d > 0;
+    setState(() => dir = d);
   }
 
   @override
@@ -787,19 +798,22 @@ class _DPadState extends State<_DPad> {
       onPointerMove: (e) => _upd(e.localPosition),
       onPointerUp: (_) => _apply(0),
       onPointerCancel: (_) => _apply(0),
-      child: Container(
-        width: w,
-        height: h,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(40),
-          gradient: const LinearGradient(colors: [Color(0xFF22345A), Color(0xFF101A30)]),
-          border: Border.all(color: const Color(0xFF3A5A8C), width: 2),
-          boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 6)],
+      child: Padding(
+        padding: const EdgeInsets.all(pad),
+        child: Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(42),
+            gradient: const LinearGradient(colors: [Color(0xFF22345A), Color(0xFF101A30)]),
+            border: Border.all(color: const Color(0xFF3A5A8C), width: 2),
+            boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 6)],
+          ),
+          child: Row(children: [
+            Expanded(child: Icon(Icons.chevron_left_rounded, size: 52, color: dir < 0 ? _gold : _ice)),
+            Expanded(child: Icon(Icons.chevron_right_rounded, size: 52, color: dir > 0 ? _gold : _ice)),
+          ]),
         ),
-        child: Row(children: [
-          Expanded(child: Icon(Icons.chevron_left_rounded, size: 46, color: dir < 0 ? _gold : _ice)),
-          Expanded(child: Icon(Icons.chevron_right_rounded, size: 46, color: dir > 0 ? _gold : _ice)),
-        ]),
       ),
     );
   }

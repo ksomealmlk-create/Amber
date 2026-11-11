@@ -107,7 +107,7 @@ class GameEngine extends ChangeNotifier {
   bool goalOpen = true, bossHitFlag = false;
   double cam = 0, vw = kW;
   int t = 0, shake = 0, cp = 30, deadT = 0, playFrames = 0, kills = 0, collected = 0, flash = 0;
-  int bossIntro = 0;
+  int bossIntro = 0, atkBuf = 0, dashBuf = 0;
 
   double _acc = 0, _last = 0;
 
@@ -290,30 +290,40 @@ class GameEngine extends ChangeNotifier {
     final L = left, R = right;
     if (p.inv > 0) p.inv--;
     if (p.dcd > 0) p.dcd--;
-    if (jump && !p.pj) p.jb = 8;
+    if (jump && !p.pj) p.jb = 10;
     p.pj = jump;
     if (p.jb > 0) p.jb--;
-    if (atk && !p.pa && p.atk <= 0) {
-      p.atk = 26;
-      bossHitFlag = false;
-      for (final e in en) {
-        e.hit = 0;
+    if (atk && !p.pa) atkBuf = 10;
+    if (atkBuf > 0) {
+      atkBuf--;
+      if (p.atk <= 0) {
+        p.atk = 26;
+        atkBuf = 0;
+        bossHitFlag = false;
+        for (final e in en) {
+          e.hit = 0;
+        }
       }
     }
     p.pa = atk;
-    if (dash && !p.pd && p.dcd <= 0 && p.dash <= 0) {
-      p.dash = 10;
-      p.dcd = dashCd;
-      p.vy = 0;
+    if (dash && !p.pd) dashBuf = 8;
+    if (dashBuf > 0) {
+      dashBuf--;
+      if (p.dcd <= 0 && p.dash <= 0) {
+        p.dash = 10;
+        p.dcd = dashCd;
+        p.vy = 0;
+        dashBuf = 0;
+      }
     }
     p.pd = dash;
     if (p.dash > 0) {
       p.dash--;
-      p.vx = p.f * 7.0;
+      p.vx = p.f * 8.0;
       p.vy = 0;
       if (t % 2 == 0) _spark(p.x + 7, p.y + 11, 1, const Color(0xFF66AADD), add: true);
     } else {
-      final a = p.g ? .6 : .4;
+      final a = p.g ? .95 : .62;
       if (L && !R) {
         p.vx -= a;
         p.f = -1;
@@ -321,26 +331,26 @@ class GameEngine extends ChangeNotifier {
         p.vx += a;
         p.f = 1;
       } else {
-        p.vx *= .78;
+        p.vx *= p.g ? .7 : .93;
       }
-      p.vx = math.max(-2.7, math.min(2.7, p.vx));
+      p.vx = math.max(-3.0, math.min(3.0, p.vx));
       p.vy += .5;
       if (p.vy > 11) p.vy = 11;
     }
     if (p.g) {
-      p.coy = 6;
+      p.coy = 8;
     } else if (p.coy > 0) {
       p.coy--;
     }
     if (p.jb > 0 && p.coy > 0) {
-      p.vy = -9.2;
+      p.vy = -9.5;
       p.coy = 0;
       p.jb = 0;
       p.g = false;
       p.sq = -0.25;
       _dust(p.x + 7, p.y + 22, 6);
     }
-    if (!jump && p.vy < -3 && p.dash <= 0) p.vy = -3;
+    if (!jump && p.vy < -3.5 && p.dash <= 0) p.vy = -3.5;
 
     final wasG = p.g;
     final preVy = p.vy;
@@ -467,7 +477,7 @@ class GameEngine extends ChangeNotifier {
     }
     if (p.atk > 0) p.atk--;
     _animate();
-    cam += ((math.max(0.0, math.min(cfg.length - vw, p.x - vw / 2 + p.f * 30))) - cam) * .1;
+    cam += ((math.max(0.0, math.min(cfg.length - vw, p.x - vw / 2 + p.f * 40))) - cam) * .14;
   }
 
   void _moveEnemy(Enemy e) {
@@ -653,8 +663,8 @@ class GameEngine extends ChangeNotifier {
   // ---------- حركة الأطراف
   void _animate() {
     double lN = 0, lF = 0, aN = 0, aF = 0, lean = 0, bob = 0;
-    final sp = math.min(1.0, p.vx.abs() / 2.7);
-    final ph = p.anim * 1.5;
+    final sp = math.min(1.0, p.vx.abs() / 3.0);
+    final ph = p.anim * 1.0;
     if (p.dash > 0) {
       lN = -0.75; lF = 0.7; aN = 1.2; aF = 1.0; lean = 0.3;
     } else if (!p.g) {
