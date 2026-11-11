@@ -8,6 +8,11 @@
 - العوالم 3–11: قابلة للعب للتجربة بألوان وخلفيات خاصة (بدون زعيم خاص بعد).
 - للتجربة كل العوالم والمراحل مفتوحة والمتجر برصيد 5000: غيّر `SaveData.unlockAll` إلى false في save.dart عند النشر.
 
+## مجسمات الطبيعة (Quaternius - CC0)
+- 23 مجسم طبيعة محوّلة إلى sprites (`assets/sprites/n_*.png` + نسخة داكنة `_d`): أشجار، صنوبر، أشجار ميتة ومعوجّة، شجيرات، سرخس، أعشاب، أزهار، فطر، صخور وحصى.
+- موزّعة تلقائياً على كل العوالم حسب طابعها (الجدول `Nature.forWorld` في `art.dart`). المرحلة الأولى الكلاسيكية لم تتغير.
+- لإضافة مجسم: ضع `n_xxx.png` و `n_xxx_d.png` في assets/sprites وأضف اسمه إلى `Nature.sprites` ثم أضف `NatSpec` للعالم المطلوب.
+
 ## هيكل الكود
 - `lib/game/level.dart` : LevelConfig + ثيمات العوالم + مصنع المراحل (LevelFactory) + قائمة العوالم.
 - `lib/game/engine.dart`: المحرك (يقرأ LevelConfig): فيزياء، أعداء، منصات متحركة/منهارة، أشواك، صناديق، زعيم.
@@ -24,15 +29,3 @@
 ارفع المشروع على فرع main ← تبويب Actions ← Build APK ← Artifacts ← Amber-apk.
 
 المجسمات CC0 (انظر `credits.txt`).
-
-
-## تحديث ديكورات العوالم
-
-تم تحديث مولّد الديكور في `lib/game/art.dart` ليختار مجموعات مجسمات مختلفة حسب رقم العالم، مع توزيع ثابت مرتبط ببذرة المرحلة. تستخدم النسخة الحالية ملفات PNG المضمّنة في `assets/sprites/` وتعرضها كعناصر ثنائية الأبعاد ذات مظهر مجسّم (وليست نماذج 3D تفاعلية). تشمل الهويات البصرية: المغارة، الغابة، الفطر السام، الهياكل، الحمم، الجليد، المقبرة، المعبد، منجم الكريستال، قلعة الظلام، والعالم الأخير.
-
-
-## External 3D environment models
-- Added Quaternius Stylized Nature MegaKit (FREE Standard, 68/116 models), CC0 1.0.
-- Selected glTF source files are preserved under `tools/external_models_source/glTF/`.
-- Transparent 2D render sprites derived from the models are under `assets/world_models/` and are loaded by the game painter.
-- Each of the 11 worlds selects a different mix of trees, rocks, mushrooms, plants, and flowers.

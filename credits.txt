@@ -48,8 +48,4 @@ Toberelva Crucifixion Plaque (RO027-029005-) | Roscommon3D DH_AGE | CC0 | https:
 
 Shadow Character 1: The Enforcer | (اكتب هنا اسم المصمم والرخصة من صفحة Sketchfab) | https://sketchfab.com
 
-
-External environment model pack:
-Stylized Nature MegaKit (FREE Standard version, 68/116 models) | Quaternius | CC0 1.0 Universal
-https://quaternius.com/packs/stylizednaturemegakit
-Original glTF source files are retained in tools/external_models_source/glTF. Runtime PNG sprites were rendered from selected models for the existing Flutter CustomPainter 2D renderer.
+Stylized Nature MegaKit (Standard) - trees, bushes, ferns, grass, flowers, mushrooms, rocks, pebbles | Quaternius | CC0 | https://quaternius.com
