@@ -121,6 +121,7 @@ class GameEngine extends ChangeNotifier {
     cfg = c;
     _acc = 0;
     _last = 0;
+    left = right = jump = dash = atk = false;
     maxHp = hearts;
     dashCd = dashCooldown;
     hammerDmg = hammer;
@@ -178,7 +179,10 @@ class GameEngine extends ChangeNotifier {
     final ms = elapsed.inMicroseconds / 1000.0;
     double dt = ms - _last;
     _last = ms;
+    // عند بدء مرحلة جديدة يبدأ Ticker جديد من الصفر، فيصير dt سالباً ويجمّد اللعبة
+    if (dt < 0) dt = 0;
     if (dt > 50) dt = 50;
+    if (_acc < 0) _acc = 0;
     _acc += dt;
     while (_acc > 16.67) {
       _step();
