@@ -2,7 +2,7 @@ import importlib, sys
 from dsl import *
 import os
 WORLD=int(os.environ.get("WORLD","1"))
-mods=['lv%d'%i for i in range(1,11)] if WORLD==1 else ['w2_%d'%i for i in range(1,6)]
+mods=['lv%d'%i for i in range(1,11)] if WORLD==1 else ['w2_%d'%i for i in range(1,11)]
 def D(v): return repr(float(v))
 def box(x,y,w,h): return "Box(%s, %s, %s, %s)"%(D(x),D(y),D(w),D(h))
 def emit(L):
