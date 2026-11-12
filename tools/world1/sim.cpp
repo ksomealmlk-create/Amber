@@ -60,7 +60,7 @@ static void initState(State& s, const Run& r) {
   for (int i = 0; i < s.ne; i++) {
     auto& a = LV.ens[i]; En& e = s.en[i];
     double yy = (a.hasY ? a.y : kFloorY) - 12;
-    e.x = a.x; e.y = yy; e.baseY = yy; e.mn = a.mn; e.mx = a.mx; e.d = 1; e.hp = 2; e.hit = 0; e.kb = 0; e.kind = a.kind; e.hopT = 60;
+    e.x = a.x; e.y = yy; e.baseY = yy; e.mn = a.mn; e.mx = a.mx; e.d = 1; e.hp = (a.kind == 2 ? 3 : 2); e.hit = 0; e.kb = 0; e.kind = a.kind; e.hopT = 60;
     e.w = a.kind == 2 ? 20 : 18;
   }
   for (int i = 0; i < s.nc; i++) { s.cr[i].timer = -1; s.cr[i].active = true; s.cr[i].respawn = 0; }
@@ -189,6 +189,7 @@ static bool stepOnce(State& s, bool L_, bool R_, bool jump, bool dashI, bool atk
     }
     Box eb{e.x, e.y, e.w, 12};
     if (e.kind == 1) eb = Box{e.x, e.baseY - 10, e.w, 34};
+    if (e.kind == 2) eb = Box{e.x, e.y - 40, e.w, 52};
     if (s.atk > 8 && s.atk < 17 && e.hit == 0 && hit(ab, eb)) { e.hit = 1; e.hp -= 2; e.kb = 8; }
     if (e.hp > 0 && hit(pbx, eb)) damaged = true;
   }

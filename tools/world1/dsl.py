@@ -7,7 +7,7 @@ class Lv:
         s.idx, s.name, s.length, s.goal_x, s.goal_y = idx, name, length, goal_x, goal_y
         s.grounds=[]; s.plats=[]; s.extra=[]; s.movs=[]; s.crums=[]; s.haz=[]; s.ens=[]; s.embers=[]
         s.chests=[]; s.breaks=[]; s.timed=[]; s.falls=[]; s.rolls=[]; s.keys=[]; s.vans=[]; s.checks=[]
-        s.wps=[]; s.runs=[]; s.notes=[]; s.boss=None; s.seed=100+idx
+        s.world=1; s.wps=[]; s.runs=[]; s.notes=[]; s.boss=None; s.seed=100+idx
     # ---- تضاريس
     def ground(s, x0, x1): s.grounds.append((x0, x1-x0))
     def block(s, x, y, w, h=None): s.extra.append((x, y, w, (500-y) if h is None else h))

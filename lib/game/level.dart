@@ -2,6 +2,7 @@
 import 'dart:ui' show Color;
 import 'levelgen.dart';
 import 'world1.dart';
+import 'world2.dart';
 
 const double kW = 360;
 const double kH = 500;
@@ -452,6 +453,8 @@ class LevelFactory {
   static LevelConfig build(int world, int idx) {
     // العالم الأول «المغارة المنسية»: عشر مراحل مصمَّمة يدوياً (أرضيات بفجوات حقيقية، لا تُملأ)
     if (world == 1) return World1.build(idx);
+    // العالم الثاني «الغابة»: المراحل 1-5 مصمَّمة يدوياً، والباقي (6-10) كما هو
+    if (world == 2 && idx >= 1 && idx <= 5) return World2.build(idx);
     final cfg = LevelGen.build(world, idx);
     return _solidFloor(cfg);
   }
