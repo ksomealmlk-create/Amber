@@ -148,6 +148,7 @@ class GamePainter extends CustomPainter {
           Paint()
             ..shader = ui.Gradient.radial(Offset(dx, dy), 190, const [Color(0x00000000), Color(0xF2000000)], const [0.35, 1.0]));
     }
+    _fogZones(c);
     _projs(c);
     _player(c);
     for (final q in e.parts) {
@@ -192,11 +193,21 @@ class GamePainter extends CustomPainter {
       final w = o.h * img.width / img.height;
       final px = o.x - cam;
       if (px + w < 0 || px - w > vw) continue;
+      final pp = (cfg.world == 3 && (o.k == 'n_mush' || o.k == 'n_lae'))
+          ? (Paint()
+            ..filterQuality = FilterQuality.medium
+            ..colorFilter = ColorFilter.mode(_mushTint(o.x), BlendMode.modulate))
+          : p;
       if (o.glw != null) {
         glow(c, px, kFloorY - o.h * .5, o.h * 1.2, o.glw!, .30 + math.sin(e.t / 40 + o.x) * .08, add: true);
       }
-      c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), Rect.fromLTWH(px - w / 2, kFloorY - o.h, w, o.h), p);
+      c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), Rect.fromLTWH(px - w / 2, kFloorY - o.h, w, o.h), pp);
     }
+  }
+
+  Color _mushTint(double x) {
+    const tints = [Color(0xFFC890FF), Color(0xFF9CFFB0), Color(0xFFFF9CE0)];
+    return tints[(x / 37).floor() % 3];
   }
 
   // ---------------- المنصات
@@ -272,6 +283,10 @@ class GamePainter extends CustomPainter {
     for (final m in e.movs) {
       final px = m.x - cam;
       if (px > vw + 20 || px + m.w < -20) continue;
+      if (cfg.world == 3) {
+        _mushPlat(c, px, m.y, m.w, hue: (m.ox ~/ 50) % 3);
+        continue;
+      }
       final rope = Paint()..color = const Color(0xAA3A2A1A)..strokeWidth = 1.2;
       c.drawLine(Offset(px + 6, m.y), Offset(px + 6, m.y - 70), rope);
       c.drawLine(Offset(px + m.w - 6, m.y), Offset(px + m.w - 6, m.y - 70), rope);
@@ -291,6 +306,12 @@ class GamePainter extends CustomPainter {
       final px = m.x - cam;
       if (px > vw + 20 || px + m.w < -20) continue;
       final shk = m.timer >= 0 ? math.sin(e.t * 2.2) * 1.4 : 0.0;
+      if (cfg.world == 3) {
+        // فطر ينكمش ويختفي عند الوقوف عليه
+        final sc = m.timer >= 0 ? (0.45 + 0.55 * m.timer / 28) : 1.0;
+        _mushPlat(c, px + shk, m.y + (m.timer >= 0 ? (28 - m.timer) * .06 : 0), m.w, sc: sc, hue: (m.x ~/ 70) % 3);
+        continue;
+      }
       final rail = Paint()..color = const Color(0xCC5A4026)..strokeWidth = 1.3;
       c.drawLine(Offset(px, m.y - 20), Offset(px + 70, m.y - 20), rail);
       c.drawLine(Offset(px, m.y - 20), Offset(px, m.y), rail);
@@ -300,6 +321,57 @@ class GamePainter extends CustomPainter {
       c.drawRect(Rect.fromLTWH(0, 0, m.w, 2), _fill(const Color(0x55FFD7A0)));
       if (m.timer >= 0) c.drawRect(Rect.fromLTWH(0, 0, m.w, 14), _fill(Color.fromRGBO(255, 120, 60, (28 - m.timer) / 28 * .35)));
       c.restore();
+    }
+  }
+
+  /// منصة على شكل قبعة فطر مضيئة (العالم الثالث)
+  void _mushPlat(Canvas c, double px, double y, double w, {double sc = 1.0, double a = 1.0, int hue = 0}) {
+    const caps = [Color(0xFF8A3CC8), Color(0xFF2FA86A), Color(0xFFC2459A)];
+    const lights = [Color(0xFFD9A8FF), Color(0xFF9CFFB8), Color(0xFFFFB0E0)];
+    final cap = caps[hue % 3], lt = lights[hue % 3];
+    final cw = w * sc;
+    final cx = px + w / 2;
+    final x0 = cx - cw / 2;
+    c.drawRect(Rect.fromLTWH(cx - 3, y + 10, 6, 20 * sc + 4), Paint()..color = Color.fromRGBO(220, 210, 190, .5 * a));
+    glow(c, cx, y + 4, w * .8 + 10, C3(lt.red, lt.green, lt.blue), .22 * a * sc, add: true);
+    final path = Path()
+      ..moveTo(x0 - 2, y + 10)
+      ..quadraticBezierTo(x0 + cw * .25, y - 5, cx, y - 3)
+      ..quadraticBezierTo(x0 + cw * .75, y - 5, x0 + cw + 2, y + 10)
+      ..quadraticBezierTo(cx, y + 18, x0 - 2, y + 10)
+      ..close();
+    c.drawPath(path, Paint()..shader = ui.Gradient.linear(Offset(cx, y - 3), Offset(cx, y + 16), [lt.withOpacity(a), cap.withOpacity(a)]));
+    c.drawPath(path, Paint()..color = const Color(0x55000000)..style = PaintingStyle.stroke..strokeWidth = 1);
+    final n = math.max(2, (w / 26).floor());
+    for (int i = 0; i < n; i++) {
+      c.drawCircle(Offset(x0 + cw * (i + .5) / n, y + 3 + (i % 2) * 3), 2.0 * sc, Paint()..color = const Color(0xFFFFFFFF).withOpacity(.75 * a));
+    }
+    c.drawLine(Offset(x0 + 3, y + 1), Offset(x0 + cw - 3, y + 1), Paint()..color = lt.withOpacity(.55 * a)..strokeWidth = 1.2);
+  }
+
+  /// ضباب سام: جزيئات متحركة داخل المناطق + تعتيم أخضر يضيّق رؤية اللاعب
+  void _fogZones(Canvas c) {
+    if (cfg.fogs.isEmpty) return;
+    final cam = e.cam, t = e.t;
+    for (final f in cfg.fogs) {
+      final x0 = f.x0 - cam, x1 = f.x1 - cam;
+      if (x1 < -60 || x0 > vw + 60) continue;
+      final lo = math.max(x0, -60.0), hi = math.min(x1, vw + 60.0);
+      for (double xx = lo; xx < hi; xx += 54) {
+        final wx = xx + cam;
+        for (int j = 0; j < 4; j++) {
+          final by = 130 + j * 85 + math.sin(t / 60 + wx * .02 + j) * 16;
+          final bx = xx + math.sin(t / 90 + j * 1.7 + wx * .013) * 24;
+          glow(c, bx, by, 74, const C3(120, 220, 90), .11 * f.density, add: true);
+        }
+      }
+    }
+    if (e.fogA > .01) {
+      final dx = e.p.x - cam + 7, dy = e.p.y + 11;
+      c.drawRect(
+          Rect.fromLTWH(-12, -12, vw + 24, kH + 24),
+          Paint()
+            ..shader = ui.Gradient.radial(Offset(dx, dy), 240 - 110 * e.fogA, [Color.fromRGBO(30, 70, 26, 0), Color.fromRGBO(12, 30, 10, .94 * e.fogA)], const [0.25, 1.0]));
     }
   }
 
@@ -325,7 +397,7 @@ class GamePainter extends CustomPainter {
         path.close();
         tips.addOval(Rect.fromCenter(center: Offset(bx + (h.w / n) * .5 + (hv - .5) * 3, h.y + h.h - hgt), width: 2.6, height: 2.6));
       }
-      glow(c, px + h.w / 2, h.y + 6, h.w * .9, th.wall == WallStyle.trunks ? const C3(255, 90, 74) : const C3(140, 200, 255), .18 + math.sin(t / 14 + h.x) * .06, add: true);
+      glow(c, px + h.w / 2, h.y + 6, h.w * .9, cfg.world == 3 ? const C3(170, 255, 80) : (th.wall == WallStyle.trunks ? const C3(255, 90, 74) : const C3(140, 200, 255)), .18 + math.sin(t / 14 + h.x) * .06, add: true);
       c.drawPath(path, _fill(th.hazA));
       c.drawPath(path, Paint()..color = const Color(0x55000000)..style = PaintingStyle.stroke..strokeWidth = .8);
       c.drawPath(tips, Paint()..color = th.hazB..blendMode = BlendMode.plus);
@@ -419,6 +491,14 @@ class GamePainter extends CustomPainter {
     }
     if (en.kind == 4) {
       _wraith(c, en, ex, flashed);
+      return;
+    }
+    if (en.kind == 5) {
+      _sporeling(c, en, ex, flashed);
+      return;
+    }
+    if (en.kind == 6) {
+      _sporeFly(c, en, ex, flashed);
       return;
     }
     if (en.flying) {
@@ -673,8 +753,31 @@ class GamePainter extends CustomPainter {
         c.drawPath(path, Paint()..color = const Color(0x66000000)..style = PaintingStyle.stroke..strokeWidth = 1);
         if (b.hp < 3) c.drawLine(Offset(x + 12, b.y + 4), Offset(x + 18, b.y + 18), Paint()..color = const Color(0xAA000000)..strokeWidth = 1);
         break;
+      case 5: // جذع فطر عملاق يخفي ممراً (العالم الثالث)
+        final mc = fl ? Colors.white : const Color(0xFFD8CCB4);
+        final stem = RRect.fromRectAndRadius(Rect.fromLTWH(x + b.w * .12, b.y + b.h * .2, b.w * .76, b.h * .8), const Radius.circular(8));
+        c.drawRRect(stem, _fill(mc));
+        c.drawRRect(stem, Paint()..color = const Color(0x55000000)..style = PaintingStyle.stroke..strokeWidth = 1.2);
+        for (double yy = b.y + b.h * .35; yy < b.y + b.h - 6; yy += 14) {
+          c.drawLine(Offset(x + b.w * .2, yy), Offset(x + b.w * .8, yy + 3), Paint()..color = const Color(0x33000000)..strokeWidth = 1);
+        }
+        final capP = Path()
+          ..moveTo(x - 6, b.y + b.h * .3)
+          ..quadraticBezierTo(x + b.w * .1, b.y - 6, x + b.w * .5, b.y - 6)
+          ..quadraticBezierTo(x + b.w * .9, b.y - 6, x + b.w + 6, b.y + b.h * .3)
+          ..quadraticBezierTo(x + b.w * .5, b.y + b.h * .4, x - 6, b.y + b.h * .3)
+          ..close();
+        glow(c, x + b.w / 2, b.y + b.h * .15, b.w * 1.1, const C3(190, 130, 255), .3, add: true);
+        c.drawPath(capP, _fill(fl ? Colors.white : const Color(0xFF7A2CB4)));
+        c.drawPath(capP, Paint()..color = const Color(0x66000000)..style = PaintingStyle.stroke..strokeWidth = 1.2);
+        c.drawCircle(Offset(x + b.w * .3, b.y + b.h * .08), 3.4, _fill(const Color(0xFFE8C8FF)));
+        c.drawCircle(Offset(x + b.w * .62, b.y + b.h * .02), 2.6, _fill(const Color(0xFFE8C8FF)));
+        c.drawCircle(Offset(x + b.w * .8, b.y + b.h * .16), 2.2, _fill(const Color(0xFFE8C8FF)));
+        if (b.hp < 3) c.drawLine(Offset(x + b.w * .4, b.y + b.h * .3), Offset(x + b.w * .55, b.y + b.h * .7), Paint()..color = const Color(0xAA000000)..strokeWidth = 1.2);
+        break;
       case 3:
-        glow(c, x + b.w / 2, b.y + b.h / 2, b.h * .9, const C3(120, 220, 255), .4, add: true);
+        final crW = cfg.world == 3;
+        glow(c, x + b.w / 2, b.y + b.h / 2, b.h * .9, crW ? const C3(200, 120, 255) : const C3(120, 220, 255), .4, add: true);
         final path3 = Path()
           ..moveTo(x + b.w / 2, b.y)
           ..lineTo(x + b.w, b.y + b.h * .35)
@@ -682,7 +785,7 @@ class GamePainter extends CustomPainter {
           ..lineTo(x + b.w * .2, b.y + b.h)
           ..lineTo(x, b.y + b.h * .35)
           ..close();
-        c.drawPath(path3, fl ? white : _fill(const Color(0xFF6FD8F0)));
+        c.drawPath(path3, fl ? white : _fill(crW ? const Color(0xFFB070F0) : const Color(0xFF6FD8F0)));
         c.drawPath(path3, Paint()..color = const Color(0xAAFFFFFF)..style = PaintingStyle.stroke..strokeWidth = 1);
         break;
       case 4:
@@ -707,6 +810,7 @@ class GamePainter extends CustomPainter {
     final on = h.on, warn = h.warn;
     final fl = warn && (t ~/ 3) % 2 == 0;
     final cx = px + h.w / 2;
+    final base = h.y + h.h;
     switch (s.kind) {
       case 0: // سلك كهربائي
         final post = _fill(const Color(0xFF3A3F4A));
@@ -760,16 +864,41 @@ class GamePainter extends CustomPainter {
           glow(c, cx, kFloorY - 8, 22, const C3(255, 120, 40), fl ? .6 : .25, add: true);
         }
         break;
-      case 3: // سحابة سامة
-        c.drawOval(Rect.fromLTWH(px + 6, kFloorY - 8, h.w - 12, 8), _fill(const Color(0xFF3A5A2A)));
+      case 3: // سحابة سامة (في العالم الثالث: فطر سام ينفث السحب)
+        if (cfg.world == 3) {
+          final mx = cx + (warn ? math.sin(t * 2.4) * 1.2 : 0.0);
+          c.drawRect(Rect.fromLTWH(mx - 3, base - 16, 6, 16), _fill(const Color(0xFFD8D0B8)));
+          final cp3 = Path()
+            ..moveTo(mx - 17, base - 14)
+            ..quadraticBezierTo(mx - 15, base - 36 - (on ? 4 : 0), mx, base - 36)
+            ..quadraticBezierTo(mx + 15, base - 36 - (on ? 4 : 0), mx + 17, base - 14)
+            ..quadraticBezierTo(mx, base - 8, mx - 17, base - 14)
+            ..close();
+          c.drawPath(cp3, _fill(on ? const Color(0xFF9CE03A) : const Color(0xFF6A2AA8)));
+          c.drawCircle(Offset(mx - 6, base - 25), 2.4, _fill(const Color(0xFFE8FFB0)));
+          c.drawCircle(Offset(mx + 5, base - 27), 1.8, _fill(const Color(0xFFE8FFB0)));
+          if (on || warn) {
+            final al3 = on ? .55 : (fl ? .4 : .18);
+            final top3 = h.y;
+            for (int i = 0; i < 7; i++) {
+              final ph3 = (t * .04 + i * .37) % 1.0;
+              final by3 = base - 36 - ph3 * math.max(10.0, base - 36 - top3);
+              final bx3 = mx + math.sin(t / 9 + i * 2) * (h.w * .35) * (on ? 1.0 : .4);
+              c.drawCircle(Offset(bx3, by3), (on ? 11 : 5) * (.6 + ph3 * .6), Paint()..color = Color.fromRGBO(150, 255, 90, al3 * (1 - ph3 * .5)));
+            }
+            if (on) glow(c, mx, (base - 36 + top3) / 2, h.w, const C3(160, 255, 90), .35, add: true);
+          }
+          break;
+        }
+        c.drawOval(Rect.fromLTWH(px + 6, base - 8, h.w - 12, 8), _fill(const Color(0xFF3A5A2A)));
         if (on || warn) {
           final a = on ? .6 : (fl ? .35 : .15);
           for (int i = 0; i < 5; i++) {
             final bx = px + 8 + (h.w - 16) * (i / 4) + math.sin(t / 10 + i) * 4;
-            final by = kFloorY - 12 - (on ? (i % 3) * 10 : (i % 2) * 3) - math.sin(t / 14 + i * 2) * 3;
+            final by = base - 12 - (on ? (i % 3) * 10 : (i % 2) * 3) - math.sin(t / 14 + i * 2) * 3;
             c.drawCircle(Offset(bx, by), on ? 12 : 6, Paint()..color = Color.fromRGBO(150, 255, 90, a));
           }
-          if (on) glow(c, cx, kFloorY - 22, h.w, const C3(160, 255, 90), .35, add: true);
+          if (on) glow(c, cx, base - 22, h.w, const C3(160, 255, 90), .35, add: true);
         }
         break;
       case 4: // شعاع ضوء
@@ -785,29 +914,110 @@ class GamePainter extends CustomPainter {
         break;
       case 5: // نبات يعضّ
         final open = on;
-        c.drawLine(Offset(cx, kFloorY), Offset(cx, kFloorY - 14), Paint()..color = const Color(0xFF2A6A2A)..strokeWidth = 4);
+        c.drawLine(Offset(cx, base), Offset(cx, base - 14), Paint()..color = const Color(0xFF2A6A2A)..strokeWidth = 4);
         final jaw = open ? 14.0 : (warn ? 8.0 : 3.0);
         final pc = _fill(on ? const Color(0xFFC83A5A) : const Color(0xFF3A8A3A));
         c.drawPath(
             Path()
-              ..moveTo(cx - 14, kFloorY - 14)
-              ..quadraticBezierTo(cx - 16, kFloorY - 14 - jaw - 8, cx, kFloorY - 14 - jaw)
-              ..quadraticBezierTo(cx - 6, kFloorY - 14, cx - 14, kFloorY - 14)
+              ..moveTo(cx - 14, base - 14)
+              ..quadraticBezierTo(cx - 16, base - 14 - jaw - 8, cx, base - 14 - jaw)
+              ..quadraticBezierTo(cx - 6, base - 14, cx - 14, base - 14)
               ..close(),
             pc);
         c.drawPath(
             Path()
-              ..moveTo(cx + 14, kFloorY - 14)
-              ..quadraticBezierTo(cx + 16, kFloorY - 14 - jaw - 8, cx, kFloorY - 14 - jaw)
-              ..quadraticBezierTo(cx + 6, kFloorY - 14, cx + 14, kFloorY - 14)
+              ..moveTo(cx + 14, base - 14)
+              ..quadraticBezierTo(cx + 16, base - 14 - jaw - 8, cx, base - 14 - jaw)
+              ..quadraticBezierTo(cx + 6, base - 14, cx + 14, base - 14)
               ..close(),
             pc);
         if (on) {
           for (int i = -2; i <= 2; i++) {
-            c.drawLine(Offset(cx + i * 5, kFloorY - 14), Offset(cx + i * 5, kFloorY - 14 - jaw * .7), Paint()..color = const Color(0xFFFFFFFF)..strokeWidth = 1.2);
+            c.drawLine(Offset(cx + i * 5, base - 14), Offset(cx + i * 5, base - 14 - jaw * .7), Paint()..color = const Color(0xFFFFFFFF)..strokeWidth = 1.2);
           }
         }
         break;
+      case 7: // جذر حي ينفجر من الأرض أو المنصة
+        {
+          c.drawOval(Rect.fromLTWH(px - 2, base - 3, h.w + 4, 5), _fill(const Color(0xFF1A0E22)));
+          final rh = on ? h.h * (.94 + math.sin(t / 3.0) * .06) : (warn ? 9.0 + math.sin(t * 2.6) * 3 : 3.0);
+          final sw = on ? 1.0 : .55;
+          final lean = math.sin(t / 9.0 + s.x) * (on ? 5.0 : 1.0);
+          final root = Path()
+            ..moveTo(cx - h.w * .5 * sw, base - 2)
+            ..quadraticBezierTo(cx - h.w * .35 + lean, base - rh * .55, cx + lean * 1.6, base - rh)
+            ..quadraticBezierTo(cx + h.w * .35 + lean, base - rh * .5, cx + h.w * .5 * sw, base - 2)
+            ..close();
+          c.drawPath(root, _fill(on ? const Color(0xFF5A2E6E) : const Color(0xFF3A2048)));
+          c.drawPath(root, Paint()..color = const Color(0x66000000)..style = PaintingStyle.stroke..strokeWidth = 1);
+          if (on) {
+            for (int i = 1; i <= 3; i++) {
+              final ty = base - rh * i / 4;
+              final dr = i.isEven ? 1.0 : -1.0;
+              c.drawLine(Offset(cx + lean * i / 3, ty), Offset(cx + dr * 11 + lean * i / 3, ty - 6), Paint()..color = const Color(0xFFB88AE0)..strokeWidth = 1.8..strokeCap = StrokeCap.round);
+            }
+            glow(c, cx + lean * 1.6, base - rh, 22, const C3(200, 120, 255), .55, add: true);
+          } else if (warn) {
+            glow(c, cx, base - 6, 20, const C3(200, 120, 255), fl ? .5 : .2, add: true);
+          }
+          break;
+        }
+      case 8: // جذر يتدلى من السقف
+        {
+          final top8 = h.y;
+          final rl = on ? h.h * (.94 + math.sin(t / 3.0) * .06) : (warn ? 9.0 + math.sin(t * 2.6) * 3 : 3.0);
+          final lean8 = math.sin(t / 9.0 + s.x) * (on ? 5.0 : 1.0);
+          final sw8 = on ? 1.0 : .55;
+          c.drawOval(Rect.fromLTWH(px - 3, top8 - 4, h.w + 6, 9), _fill(const Color(0xFF1A0E22)));
+          final root8 = Path()
+            ..moveTo(cx - h.w * .5 * sw8, top8)
+            ..quadraticBezierTo(cx - h.w * .35 + lean8, top8 + rl * .55, cx + lean8 * 1.6, top8 + rl)
+            ..quadraticBezierTo(cx + h.w * .35 + lean8, top8 + rl * .5, cx + h.w * .5 * sw8, top8)
+            ..close();
+          c.drawPath(root8, _fill(on ? const Color(0xFF5A2E6E) : const Color(0xFF3A2048)));
+          c.drawPath(root8, Paint()..color = const Color(0x66000000)..style = PaintingStyle.stroke..strokeWidth = 1);
+          if (on) {
+            for (int i = 1; i <= 3; i++) {
+              final ty = top8 + rl * i / 4;
+              final dr = i.isEven ? 1.0 : -1.0;
+              c.drawLine(Offset(cx + lean8 * i / 3, ty), Offset(cx + dr * 11 + lean8 * i / 3, ty + 6), Paint()..color = const Color(0xFFB88AE0)..strokeWidth = 1.8..strokeCap = StrokeCap.round);
+            }
+            glow(c, cx + lean8 * 1.6, top8 + rl, 22, const C3(200, 120, 255), .55, add: true);
+          } else if (warn) {
+            glow(c, cx, top8 + 6, 20, const C3(200, 120, 255), fl ? .5 : .2, add: true);
+          }
+          break;
+        }
+      case 9: // جذر يندفع أفقياً من الجدار (9 من اليسار، 10 من اليمين)
+      case 10:
+        {
+          final fromLeft = s.kind == 9;
+          final ax0 = fromLeft ? px : px + h.w;
+          final dx9 = fromLeft ? 1.0 : -1.0;
+          final cy9 = h.y + h.h / 2;
+          final rl9 = on ? h.w * (.94 + math.sin(t / 3.0) * .06) : (warn ? 9.0 + math.sin(t * 2.6) * 3 : 3.0);
+          final lean9 = math.sin(t / 9.0 + s.x) * (on ? 4.0 : 1.0);
+          final sw9 = on ? 1.0 : .55;
+          c.drawOval(Rect.fromLTWH(ax0 - 5, cy9 - h.h * .6, 10, h.h * 1.2), _fill(const Color(0xFF1A0E22)));
+          final root9 = Path()
+            ..moveTo(ax0, cy9 - h.h * .5 * sw9)
+            ..quadraticBezierTo(ax0 + dx9 * rl9 * .55, cy9 - h.h * .35 + lean9, ax0 + dx9 * rl9, cy9 + lean9 * 1.6)
+            ..quadraticBezierTo(ax0 + dx9 * rl9 * .5, cy9 + h.h * .35 + lean9, ax0, cy9 + h.h * .5 * sw9)
+            ..close();
+          c.drawPath(root9, _fill(on ? const Color(0xFF5A2E6E) : const Color(0xFF3A2048)));
+          c.drawPath(root9, Paint()..color = const Color(0x66000000)..style = PaintingStyle.stroke..strokeWidth = 1);
+          if (on) {
+            for (int i = 1; i <= 3; i++) {
+              final tx = ax0 + dx9 * rl9 * i / 4;
+              final dr = i.isEven ? 1.0 : -1.0;
+              c.drawLine(Offset(tx, cy9 + lean9 * i / 3), Offset(tx + dx9 * 6, cy9 + dr * 11 + lean9 * i / 3), Paint()..color = const Color(0xFFB88AE0)..strokeWidth = 1.8..strokeCap = StrokeCap.round);
+            }
+            glow(c, ax0 + dx9 * rl9, cy9 + lean9 * 1.6, 22, const C3(200, 120, 255), .55, add: true);
+          } else if (warn) {
+            glow(c, ax0 + dx9 * 6, cy9, 20, const C3(200, 120, 255), fl ? .5 : .2, add: true);
+          }
+          break;
+        }
       default: // نصل متأرجح
         final bx = h.x + h.w / 2 - e.cam;
         c.drawLine(Offset(bx, h.y - 20), Offset(bx, h.y + 4), Paint()..color = const Color(0xFF555A66)..strokeWidth = 1.4);
@@ -895,24 +1105,51 @@ class GamePainter extends CustomPainter {
 
   void _spring(Canvas c, SpringPad s, double px) {
     if (px < -40 || px > vw + 40) return;
+    final by = s.y + 12;
     final sq = s.anim > 0 ? 1 - s.anim / 14 : 0.0;
-    final capH = 12 - (s.anim > 7 ? 5 : 0) + sq * 0;
-    c.drawRect(Rect.fromLTWH(px + 8, kFloorY - 5, 10, 5), _fill(const Color(0xFFE8D8B8)));
+    final capH = (12 - (s.anim > 7 ? 5 : 0) + sq * 0) * (s.power > 1.1 ? 1.25 : (s.power < .9 ? .8 : 1.0));
+    final hot = s.power > 1.1;
+    final w3 = cfg.world == 3;
+    final capC = w3 ? (hot ? const Color(0xFFE0409A) : (s.power < .9 ? const Color(0xFF3AC8A0) : const Color(0xFFB04AD8))) : const Color(0xFFB04AD8);
+    c.drawRect(Rect.fromLTWH(px + 8, by - 5, 10, 5), _fill(const Color(0xFFE8D8B8)));
     final cap = Path()
-      ..moveTo(px - 2, kFloorY - 5)
-      ..quadraticBezierTo(px + 13, kFloorY - 5 - capH * 2.2, px + 28, kFloorY - 5)
+      ..moveTo(px - 2, by - 5)
+      ..quadraticBezierTo(px + 13, by - 5 - capH * 2.2, px + 28, by - 5)
       ..close();
-    glow(c, px + 13, kFloorY - 8, 26, const C3(230, 150, 255), .35 + (s.anim > 0 ? .4 : 0), add: true);
-    c.drawPath(cap, _fill(const Color(0xFFB04AD8)));
-    c.drawCircle(Offset(px + 8, kFloorY - 10), 1.8, _fill(const Color(0xFFF0D0FF)));
-    c.drawCircle(Offset(px + 17, kFloorY - 12), 1.4, _fill(const Color(0xFFF0D0FF)));
+    glow(c, px + 13, by - 8, 26, hot ? const C3(255, 120, 200) : const C3(230, 150, 255), .35 + (s.anim > 0 ? .4 : 0), add: true);
+    c.drawPath(cap, _fill(capC));
+    c.drawCircle(Offset(px + 8, by - 10), 1.8, _fill(const Color(0xFFF0D0FF)));
+    c.drawCircle(Offset(px + 17, by - 12), 1.4, _fill(const Color(0xFFF0D0FF)));
   }
 
   void _keyDoor(Canvas c, KeyDoorO k, double cam) {
     final dx = k.door.x - cam;
     if (dx > -40 && dx < vw + 40) {
       final off = k.open ? math.min(1.0, k.anim / 40) * 110 : 0.0;
-      if (!(k.open && k.anim >= 40)) {
+      if (cfg.world == 3 && !(k.open && k.anim >= 40)) {
+        // باب نباتي: كروم متشابكة تتراجع عند فتحه
+        c.save();
+        c.clipRect(Rect.fromLTWH(dx - 3, k.door.y - 4, 30, 114));
+        final y0 = k.door.y - off;
+        c.drawRect(Rect.fromLTWH(dx, y0, 22, 110), _fill(const Color(0xFF1C2A18)));
+        for (int i = 0; i < 4; i++) {
+          final vx = dx + 3 + i * 5.0;
+          final vp = Path()..moveTo(vx, y0);
+          for (int j = 1; j <= 10; j++) {
+            vp.lineTo(vx + math.sin(j * 1.3 + i * 1.7) * 3.2, y0 + j * 11.0);
+          }
+          c.drawPath(vp, Paint()..color = (i.isEven ? const Color(0xFF3E9A46) : const Color(0xFF2A7A60))..style = PaintingStyle.stroke..strokeWidth = 3);
+        }
+        for (int i = 0; i < 5; i++) {
+          c.drawLine(Offset(dx + 1, y0 + 12 + i * 20.0), Offset(dx + 21, y0 + 6 + i * 20.0), Paint()..color = const Color(0xFFB4FF50)..strokeWidth = 1.2);
+        }
+        if (!k.open) {
+          glow(c, dx + 11, y0 + 56, 18, const C3(180, 255, 100), .5, add: true);
+          c.drawCircle(Offset(dx + 11, y0 + 56), 5, _fill(const Color(0xFFE860B0)));
+          c.drawCircle(Offset(dx + 11, y0 + 56), 2.2, _fill(const Color(0xFFFFF0A0)));
+        }
+        c.restore();
+      } else if (!(k.open && k.anim >= 40)) {
         c.save();
         c.clipRect(Rect.fromLTWH(dx - 3, k.door.y - 4, 30, 114));
         final y0 = k.door.y - off;
@@ -956,6 +1193,10 @@ class GamePainter extends CustomPainter {
     } else if (v.warn) {
       a = (e.t ~/ 3) % 2 == 0 ? .35 : 1.0;
     }
+    if (cfg.world == 3) {
+      _mushPlat(c, px, v.y, v.w, a: a, hue: (v.x ~/ 60) % 3);
+      return;
+    }
     final r = RRect.fromRectAndRadius(Rect.fromLTWH(px, v.y, v.w, v.h), const Radius.circular(3));
     c.drawRRect(r, _fill(fill.withOpacity(a)));
     c.drawRRect(r, Paint()..color = edge.withOpacity(a)..style = PaintingStyle.stroke..strokeWidth = 1.4);
@@ -988,6 +1229,57 @@ class GamePainter extends CustomPainter {
     glow(c, ex + 9, en.y + 5, charge ? 18 : 10, const C3(255, 120, 60), charge ? .9 : .5, add: true);
     c.drawCircle(Offset(ex + 9 + dir * 2, en.y + 5), 2.2, _fill(const Color(0xFFFF8A4A)));
     c.drawCircle(Offset(ex + 4, en.y + 12 + math.sin(t / 8) * .3), 1.2, _fill(const Color(0xFF8A8F9C)));
+  }
+
+  /// جرثومة فطرية صغيرة مطاردة
+  void _sporeling(Canvas c, Enemy en, double ex, bool flashed) {
+    final t = e.t;
+    final cx = ex + 9;
+    final chase = (e.p.x - en.x).abs() < 230;
+    glow(c, cx, en.y + 6, 26, chase ? const C3(255, 90, 140) : const C3(170, 255, 90), .3, add: true);
+    final leg = Paint()
+      ..color = (flashed ? Colors.white : const Color(0xFFD8D0B8))
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round;
+    final st = math.sin(t / (chase ? 3 : 6)) * 2.2;
+    c.drawLine(Offset(cx - 3, en.y + 8), Offset(cx - 4 + st, en.y + 13), leg);
+    c.drawLine(Offset(cx + 3, en.y + 8), Offset(cx + 4 - st, en.y + 13), leg);
+    final capP = Path()
+      ..moveTo(cx - 11, en.y + 9)
+      ..quadraticBezierTo(cx - 10, en.y - 9, cx, en.y - 9)
+      ..quadraticBezierTo(cx + 10, en.y - 9, cx + 11, en.y + 9)
+      ..close();
+    c.drawPath(capP, _fill(flashed ? Colors.white : (chase ? const Color(0xFFA02A6A) : const Color(0xFF6A2AA8))));
+    c.drawCircle(Offset(cx - 5, en.y - 2), 1.8, _fill(const Color(0xFFE8C8FF)));
+    c.drawCircle(Offset(cx + 4, en.y - 4), 1.4, _fill(const Color(0xFFE8C8FF)));
+    final fx = cx + (en.d > 0 ? 3.0 : -3.0);
+    glow(c, fx, en.y + 6, 6, const C3(255, 140, 80), .8, add: true);
+    c.drawCircle(Offset(fx - 2, en.y + 6), 1.3, _fill(const Color(0xFFFF8A5D)));
+    c.drawCircle(Offset(fx + 2, en.y + 6), 1.3, _fill(const Color(0xFFFF8A5D)));
+  }
+
+  /// جرثومة طائرة تطلق مقذوفات
+  void _sporeFly(Canvas c, Enemy en, double ex, bool flashed) {
+    final t = e.t;
+    final cx = ex + 9, cy = en.y + 6;
+    final charge = en.hopT < 24;
+    glow(c, cx, cy, charge ? 40 : 30, const C3(170, 255, 90), charge ? .6 : .35, add: true);
+    final fl = math.sin(t / 3.0) * 6;
+    for (final sg in const [-1.0, 1.0]) {
+      final w = Path()
+        ..moveTo(cx, cy)
+        ..quadraticBezierTo(cx + sg * 12, cy - 10 - fl, cx + sg * 22, cy - 3 - fl * .5)
+        ..quadraticBezierTo(cx + sg * 12, cy + 3, cx, cy + 3)
+        ..close();
+      c.drawPath(w, Paint()..color = const Color(0x88C8FF9A));
+    }
+    c.drawCircle(Offset(cx, cy), 8, _fill(flashed ? Colors.white : const Color(0xFF3A8A3A)));
+    for (int i = 0; i < 4; i++) {
+      final an = t / 18 + i * math.pi / 2;
+      c.drawCircle(Offset(cx + math.cos(an) * 5, cy + math.sin(an) * 5), 1.4, _fill(const Color(0xFFE0FF9A)));
+    }
+    c.drawCircle(Offset(cx - 2.5, cy - 1), 1.5, _fill(const Color(0xFFFF5A7A)));
+    c.drawCircle(Offset(cx + 2.5, cy - 1), 1.5, _fill(const Color(0xFFFF5A7A)));
   }
 
   void _wraith(Canvas c, Enemy en, double ex, bool flashed) {
@@ -1036,11 +1328,12 @@ class GamePainter extends CustomPainter {
       9: [Color(0xFF2AA0C0), Color(0xFF7FE6FF), Color(0xFFB0F4FF)],
       10: [Color(0xFF120C1C), Color(0xFF2A1A3A), Color(0xFFB84AFF)],
       11: [Color(0xFF2A1038), Color(0xFF6A2A8A), Color(0xFFFF4AB0)],
+      12: [Color(0xFFD8CCB4), Color(0xFF7A2CB4), Color(0xFFB4FF50)],
     };
     final pl = pal[k] ?? pal[11]!;
     final base = flashed ? Colors.white : pl[0];
     final sec = flashed ? Colors.white : pl[1];
-    final gl = (k == 1 && b.ph == 2) ? const Color(0xFFFFB347) : ((k == 1 && b.ph >= 3) ? const Color(0xFFFF4A3A) : pl[2]);
+    final gl = ((k == 1 || k == 12) && b.ph == 2) ? (k == 12 ? const Color(0xFFFF6AE0) : const Color(0xFFFFB347)) : (((k == 1 || k == 12) && b.ph >= 3) ? const Color(0xFFFF4A3A) : pl[2]);
     final glc = C3(gl.red, gl.green, gl.blue);
     c.saveLayer(Rect.fromLTWH(cx - 150, cy - 130, 300, 220), Paint()..color = Color.fromRGBO(255, 255, 255, fade));
     c.translate(shk, 0);
@@ -1208,6 +1501,74 @@ class GamePainter extends CustomPainter {
         hx = cx + face * 4;
         hy = cy - 44;
         break;
+      case 12: // ملك الفطر السام: فطر عملاق بثلاث مراحل قتالية
+        {
+          // جذور تتحرك كأرجل
+          final rp = Paint()
+            ..color = (flashed ? Colors.white : const Color(0xFF5A2E6E))
+            ..strokeWidth = 7
+            ..strokeCap = StrokeCap.round
+            ..style = PaintingStyle.stroke;
+          for (int i = 0; i < 4; i++) {
+            final sx = cx - 30 + i * 20.0;
+            final wob = math.sin(t / 7 + i * 1.6) * (b.st == 'idle' || b.st == 'charge' ? 6 : 2);
+            final rpath = Path()
+              ..moveTo(sx, cy + 18)
+              ..quadraticBezierTo(sx + (i.isEven ? -14 : 14) + wob, cy + 34, sx + (i.isEven ? -20 : 20) + wob, kFloorY - 2);
+            c.drawPath(rpath, rp);
+          }
+          // الساق (الجذع)
+          c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(cx, cy + 2), width: 58, height: 52), const Radius.circular(18)), _fill(base));
+          c.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(cx, cy + 2), width: 58, height: 52), const Radius.circular(18)), Paint()..color = const Color(0x55000000)..style = PaintingStyle.stroke..strokeWidth = 1.4);
+          // القبعة العملاقة
+          final capTop = cy - 88 - (b.st == 'spore' ? math.sin(b.t / 3.0) * 4 : 0.0);
+          final capP = Path()
+            ..moveTo(cx - 78, cy - 14)
+            ..quadraticBezierTo(cx - 74, capTop, cx, capTop)
+            ..quadraticBezierTo(cx + 74, capTop, cx + 78, cy - 14)
+            ..quadraticBezierTo(cx, cy - 2, cx - 78, cy - 14)
+            ..close();
+          c.drawPath(capP, Paint()..shader = ui.Gradient.linear(Offset(cx, capTop), Offset(cx, cy - 8), [flashed ? Colors.white : Color.lerp(sec, Colors.white, .22)!, sec]));
+          c.drawPath(capP, Paint()..color = const Color(0x66000000)..style = PaintingStyle.stroke..strokeWidth = 1.6);
+          // خياشيم تحت القبعة
+          for (int i = -5; i <= 5; i++) {
+            c.drawLine(Offset(cx + i * 13.0, cy - 12), Offset(cx + i * 11.0, cy - 5), Paint()..color = const Color(0x55000000)..strokeWidth = 1.2);
+          }
+          // بقع مضيئة
+          for (int i = 0; i < 6; i++) {
+            final sx = cx - 50 + i * 20.0;
+            final sy = capTop + 22 + (i % 3) * 14.0;
+            c.drawCircle(Offset(sx, sy), 6.0 - (i % 3), _fill(const Color(0xFFE8D0FF)));
+          }
+          // الكيس المضيء = نقطة الضعف (يشتعل بعد كل هجوم أثناء التعثّر)
+          final sacOn = stun;
+          final sacX = cx + math.sin(t / 30.0) * 3;
+          final sacY = capTop + 12;
+          glow(c, sacX, sacY, sacOn ? 44 : 26, glc, sacOn ? .85 : .4 + math.sin(t / 10.0) * .1, add: true);
+          c.drawOval(Rect.fromCenter(center: Offset(sacX, sacY), width: 22, height: 16), _fill(sacOn ? const Color(0xFFFFF6A0) : Color.fromRGBO(glc.r, glc.g, glc.b, 1)));
+          c.drawOval(Rect.fromCenter(center: Offset(sacX - 3, sacY - 2), width: 7, height: 5), Paint()..color = const Color(0x99FFFFFF));
+          // قرون الشوك على القبعة في المرحلة الثالثة
+          if (b.ph >= 3) {
+            for (int i = -2; i <= 2; i++) {
+              c.drawPath(
+                  Path()
+                    ..moveTo(cx + i * 22.0 - 6, capTop + 8 + i.abs() * 6)
+                    ..lineTo(cx + i * 22.0, capTop - 12 + i.abs() * 6)
+                    ..lineTo(cx + i * 22.0 + 6, capTop + 8 + i.abs() * 6)
+                    ..close(),
+                  _fill(const Color(0xFFFF4A3A)));
+            }
+          }
+          // أبواغ تتصاعد
+          for (int i = 0; i < 5; i++) {
+            final ph = (t / 60.0 + i * .21) % 1.0;
+            c.drawCircle(Offset(cx - 60 + i * 30.0 + math.sin(t / 15.0 + i) * 6, capTop + 10 - ph * 40), 2.2 * (1 - ph), Paint()..color = Color.fromRGBO(gl.red, gl.green, gl.blue, .8 * (1 - ph))..blendMode = BlendMode.plus);
+          }
+          hx = cx + face * 4;
+          hy = cy + 4;
+          glow(c, cx, cy - 30, 90, glc, .2, add: true);
+          break;
+        }
       default: // الزعيم الأخير
         c.drawLine(Offset(cx - 20, cy + 14), Offset(cx - 24 + walk, kFloorY - 2), legP);
         c.drawLine(Offset(cx + 20, cy + 14), Offset(cx + 24 - walk, kFloorY - 2), legP);
@@ -1237,7 +1598,7 @@ class GamePainter extends CustomPainter {
       glow(c, ex2, hy, 8, ec, .9, add: true);
       c.drawCircle(Offset(ex2, hy), 2.2, _fill(Color.fromRGBO(ec.r, ec.g, ec.b, 1)));
     }
-    if (b.st == 'rain' || b.st == 'ring') glow(c, cx, cy - 10, 60 + math.sin(t / 3) * 8, glc, .35, add: true);
+    if (b.st == 'rain' || b.st == 'ring' || b.st == 'spore' || b.st == 'cloud') glow(c, cx, cy - 10, 60 + math.sin(t / 3) * 8, glc, .35, add: true);
     if (b.st == 'charge' && b.t < 32) glow(c, cx, cy, 70, const C3(255, 60, 40), .15 + (b.t % 8) * .03, add: true);
     if (b.enraged && b.st != 'dead') glow(c, cx, cy, 80, const C3(255, 50, 30), .18 + math.sin(t / 6) * .05, add: true);
     if (stun) {
@@ -1251,21 +1612,39 @@ class GamePainter extends CustomPainter {
 
   void _projs(Canvas c) {
     final cam = e.cam;
+    final g3 = cfg.world == 3;
     for (final q in e.projs) {
       final x = q.x - cam;
-      if (x < -20 || x > vw + 20) continue;
-      if (q.kind == 2) {
-        glow(c, x, q.y, 14, const C3(255, 150, 70), .8, add: true);
-        c.drawCircle(Offset(x, q.y), 3.6, _fill(const Color(0xFFFFE0A0)));
+      if (x < -40 || x > vw + 40) continue;
+      if (q.kind == 4) {
+        // سحابة سامة: تحذير شفاف ثم ضرر
+        final warn = q.l > 200;
+        final al = warn ? .18 : .55;
+        for (int i = 0; i < 6; i++) {
+          final bx = x - 18 + i * 7.2 + math.sin(e.t / 9 + i * 2) * 4;
+          final by = q.y - 4 - (i % 3) * 8 - math.sin(e.t / 12 + i) * 3;
+          c.drawCircle(Offset(bx, by), warn ? 7 : 12, Paint()..color = Color.fromRGBO(150, 255, 90, al));
+        }
+        glow(c, x, q.y - 6, 40, const C3(160, 255, 90), warn ? .15 : .4, add: true);
+        continue;
+      }
+      if (q.kind == 3) {
+        glow(c, x, q.y, 16, const C3(170, 255, 90), .8, add: true);
+        c.drawCircle(Offset(x, q.y), 4, _fill(const Color(0xFFD8FF9A)));
         c.drawCircle(Offset(x, q.y), 2, _fill(const Color(0xFFFFFFFF)));
-        c.drawLine(Offset(x, q.y), Offset(x - q.vx * 4, q.y - q.vy * 4), Paint()..color = const Color(0x88FFB347)..strokeWidth = 1.6);
+        c.drawLine(Offset(x, q.y), Offset(x - q.vx * 4, q.y - q.vy * 4), Paint()..color = const Color(0x88B4FF50)..strokeWidth = 1.6);
+      } else if (q.kind == 2) {
+        glow(c, x, q.y, 14, g3 ? const C3(170, 255, 90) : const C3(255, 150, 70), .8, add: true);
+        c.drawCircle(Offset(x, q.y), 3.6, _fill(g3 ? const Color(0xFFD8FF9A) : const Color(0xFFFFE0A0)));
+        c.drawCircle(Offset(x, q.y), 2, _fill(const Color(0xFFFFFFFF)));
+        c.drawLine(Offset(x, q.y), Offset(x - q.vx * 4, q.y - q.vy * 4), Paint()..color = (g3 ? const Color(0x88B4FF50) : const Color(0x88FFB347))..strokeWidth = 1.6);
       } else if (q.kind == 0) {
         glow(c, x, q.y, 12, const C3(200, 255, 190), .7, add: true);
         c.drawCircle(Offset(x, q.y), 3.4, _fill(const Color(0xFFE8FFE0)));
         c.drawLine(Offset(x, q.y), Offset(x - q.vx * 4, q.y - q.vy * 4), Paint()..color = const Color(0x88FFFFFF)..strokeWidth = 1);
       } else {
-        glow(c, x, q.y + 6, 16, const C3(200, 120, 255), .6, add: true);
-        c.drawOval(Rect.fromCenter(center: Offset(x, q.y + 6), width: 10, height: 16), Paint()..color = const Color(0xCCE6B8FF)..blendMode = BlendMode.plus);
+        glow(c, x, q.y + 6, 16, g3 ? const C3(150, 255, 80) : const C3(200, 120, 255), .6, add: true);
+        c.drawOval(Rect.fromCenter(center: Offset(x, q.y + 6), width: 10, height: 16), Paint()..color = (g3 ? const Color(0xCCC8FF90) : const Color(0xCCE6B8FF))..blendMode = BlendMode.plus);
       }
     }
   }
@@ -1280,7 +1659,7 @@ class GamePainter extends CustomPainter {
     }
     hole(e.p.x - cam + 7, e.p.y + 12, 200 + math.sin(t / 12) * 6, .97);
     for (final o in a.props) {
-      if (o.glw == null) continue;
+      if (o.glw == null || o.layer == 0) continue;
       hole(o.x - cam, kFloorY - o.h * .5, o.h * 2.2 + 30, .9);
     }
     for (final m in e.embers) {
@@ -1297,6 +1676,9 @@ class GamePainter extends CustomPainter {
     if (b != null && b.st != 'sleep') hole(b.x + b.w / 2 - cam, b.y + 28, 110, .95);
     for (final q in e.projs) {
       hole(q.x - cam, q.y, 28, .9);
+    }
+    for (final bb in e.bubs) {
+      if (bb.alive) hole(bb.x - cam, bb.y, 38, .85);
     }
     c.restore();
   }

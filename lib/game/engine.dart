@@ -17,7 +17,7 @@ class Player extends Box {
 class Enemy extends Box {
   double minX, maxX, ph, baseY, jy = 0, jv = 0;
   int d = 1, hp = 2, hit = 0, kb = 0, kind, hopT = 60;
-  bool get flying => kind == 1;
+  bool get flying => kind == 1 || kind == 6;
   Enemy(double x, double y, this.minX, this.maxX, this.kind, this.ph)
       : baseY = y,
         super(x, y, kind == 2 ? 20 : 18, 12);
@@ -76,7 +76,7 @@ class Brk extends Box {
   Brk(BreakSpec s)
       : kind = s.kind,
         drop = s.drop,
-        hp = (s.kind == 2 || s.kind == 4) ? 3 : (s.kind == 3 ? 2 : 1),
+        hp = (s.kind == 2 || s.kind == 4 || s.kind == 5) ? 3 : (s.kind == 3 ? 2 : 1),
         super(s.x, s.y, s.w, s.h);
 }
 
@@ -110,7 +110,23 @@ class Roller {
 
 class SpringPad extends Box {
   int anim = 0;
-  SpringPad(SpringSpec s) : super(s.x, s.y, 26, 12);
+  final double power;
+  SpringPad(SpringSpec s)
+      : power = s.power,
+        super(s.x, s.y, 26, 12);
+}
+
+/// فقاعة سامة عائمة: تنفجر عند ملامستها (ضرر) أو بضربة المطرقة (بأمان) وتعود بعد فترة
+class Bubble {
+  final BubbleSpec s;
+  double x, y;
+  bool alive = true;
+  int respawn = 0, pop = 0;
+  Bubble(BubbleSpec spec)
+      : s = spec,
+        x = spec.x,
+        y = spec.y;
+  Box get box => Box(x - 11, y - 11, 22, 22);
 }
 
 class KeyDoorO {
@@ -140,7 +156,7 @@ class Ambush {
 
 class Proj {
   double x, y, vx, vy;
-  int l, kind; // 0 شبكة، 1 موجة أرضية
+  int l, kind; // 0 شبكة، 1 موجة أرضية، 2 كرة ساقطة، 3 جرثومة مصوَّبة، 4 سحابة سامة ثابتة
   Proj(this.x, this.y, this.vx, this.vy, this.l, this.kind);
 }
 
@@ -184,6 +200,8 @@ class GameEngine extends ChangeNotifier {
   List<KeyDoorO> kdoors = [];
   List<VanishP> vplats = [];
   List<Ambush> ambushes = [];
+  List<Bubble> bubs = [];
+  double fogA = 0;
   int deaths = 0;
   int get stars {
     final tot = totalEmbers;
@@ -258,6 +276,8 @@ class GameEngine extends ChangeNotifier {
       kdoors = cfg.keyDoors.map((a) => KeyDoorO(a)).toList();
       vplats = cfg.vanish.map((a) => VanishP(a)).toList();
       ambushes = cfg.ambush.map((a) => Ambush(a)).toList();
+      bubs = cfg.bubbles.map((a) => Bubble(a)).toList();
+      fogA = 0;
       projs = [];
       parts = [];
       final b = cfg.boss;
@@ -456,6 +476,14 @@ class GameEngine extends ChangeNotifier {
     for (final c in chests) {
       if (c.open && c.anim < 30) c.anim++;
     }
+    if (cfg.fogs.isNotEmpty) {
+      double target = 0;
+      final fx = p.x + 7;
+      for (final f in cfg.fogs) {
+        if (fx > f.x0 && fx < f.x1) target = math.max(target, f.density);
+      }
+      fogA += (target - fogA) * .05;
+    }
   }
 
   // ---------- العناصر التفاعلية الجديدة
@@ -477,6 +505,8 @@ class GameEngine extends ChangeNotifier {
         return const Color(0xFF7FE6FF);
       case 4:
         return const Color(0xFF6A6F7A);
+      case 5:
+        return const Color(0xFFD8CCB4);
       default:
         return const Color(0xFFA06A34);
     }
@@ -651,6 +681,32 @@ class GameEngine extends ChangeNotifier {
       }
       if (a.fired) a.anim++;
     }
+    // فقاعات سامة
+    for (final b in bubs) {
+      if (!b.alive) {
+        if (b.pop > 0) b.pop--;
+        b.respawn--;
+        if (b.respawn <= 0) b.alive = true;
+        continue;
+      }
+      b.x = b.s.x + math.sin(t * b.s.sp + b.s.ph) * b.s.ax;
+      b.y = b.s.y + math.sin(t * b.s.sp * 1.3 + b.s.ph) * b.s.ay;
+      if (p.hits(b.box)) {
+        _popBubble(b);
+        if (_hurt(b.x)) return;
+      }
+    }
+  }
+
+  void _popBubble(Bubble b) {
+    b.alive = false;
+    b.respawn = 300;
+    b.pop = 18;
+    shake = math.max(shake, 3);
+    for (int i = 0; i < 14; i++) {
+      parts.add(Part(b.x, b.y, (rng.nextDouble() - .5) * 3.4, (rng.nextDouble() - .5) * 3.4, 30, const Color(0xFFB4FF50), 2 + rng.nextDouble() * 2, true, 230));
+    }
+    HapticFeedback.lightImpact();
   }
 
   void _debris(Box c) {
@@ -750,7 +806,7 @@ class GameEngine extends ChangeNotifier {
     p.g = _moveY(p, p.vy);
     for (final sp in springsL) {
       if (p.vy >= 0 && p.hits(Box(sp.x, sp.y - 2, sp.w, 14)) && p.y + p.h <= sp.y + 12) {
-        p.vy = -13.5;
+        p.vy = -13.5 * sp.power;
         p.g = false;
         p.coy = 0;
         p.spr = 22;
@@ -885,6 +941,9 @@ class GameEngine extends ChangeNotifier {
     }
     if (p.atk == 12) {
       _hitBreakables(ab);
+      for (final bb in bubs) {
+        if (bb.alive && ab.hits(bb.box)) _popBubble(bb);
+      }
       _spark(p.x + 7 + p.f * 24, p.y + 18, 18, const Color(0xFFBDEFFF), add: true);
       shake = 5;
       HapticFeedback.lightImpact();
@@ -899,6 +958,39 @@ class GameEngine extends ChangeNotifier {
     if (e.kb > 0) {
       e.kb--;
       e.x += (p.x < e.x ? 1 : -1) * 2.5;
+      return;
+    }
+    if (e.kind == 5) {
+      // جرثومة مطاردة: تلاحق اللاعب داخل نطاقها وتعود لدوريتها
+      final dx = (p.x + 7) - (e.x + 9);
+      final chase = dx.abs() < 230 && (p.y - e.y).abs() < 70;
+      if (chase) e.d = dx > 0 ? 1 : -1;
+      e.x += e.d * (chase ? 1.25 : 0.6);
+      if (e.x < e.minX) {
+        e.x = e.minX;
+        e.d = 1;
+      }
+      if (e.x + e.w > e.maxX) {
+        e.x = e.maxX - e.w;
+        e.d = -1;
+      }
+      return;
+    }
+    if (e.kind == 6) {
+      // جرثومة طائرة: تحوم وتطلق مقذوف جراثيم مصوَّباً نحو اللاعب
+      e.x += e.d * 0.6;
+      if (e.x < e.minX) e.d = 1;
+      if (e.x + e.w > e.maxX) e.d = -1;
+      e.hopT--;
+      final dx = (p.x + 7) - (e.x + 9), dy = (p.y + 11) - (e.y + 6);
+      if (e.hopT <= 0 && dx.abs() < 330 && dy.abs() < 260) {
+        final dd = math.sqrt(dx * dx + dy * dy);
+        if (dd > 40) {
+          projs.add(Proj(e.x + 9, e.y + 6, dx / dd * 2.3, dy / dd * 2.3, 170, 3));
+          _spark(e.x + 9, e.y + 6, 5, const Color(0xFFB4FF50), add: true);
+        }
+        e.hopT = 150;
+      }
       return;
     }
     if (e.kind == 4) {
@@ -977,8 +1069,8 @@ class GameEngine extends ChangeNotifier {
       }
       return;
     }
-    if (b.kind == 1) _guardianPhase(b);
-    if (b.kind != 1 && b.hp <= b.maxHp * 0.4 && !b.enraged) {
+    if (b.kind == 1 || b.kind == 12) _guardianPhase(b);
+    if (b.kind != 1 && b.kind != 12 && b.hp <= b.maxHp * 0.4 && !b.enraged) {
       b.enraged = true;
       shake = 14;
       _spark(b.x + b.w / 2, b.y + 20, 40, const Color(0xFFFF4A3A), add: true);
@@ -1007,7 +1099,7 @@ class GameEngine extends ChangeNotifier {
         b.x = math.max(4.0, math.min(cfg.length - 14 - b.w, b.x));
         b.cd--;
         if (b.cd <= 0) {
-          final pl = b.kind == 1 ? _guardPool(b.ph) : _pool(b.kind);
+          final pl = b.kind == 1 ? _guardPool(b.ph) : (b.kind == 12 ? _mushPool(b.ph) : _pool(b.kind));
           b.st = pl[rng.nextInt(pl.length)];
           b.t = 0;
         }
@@ -1091,11 +1183,11 @@ class GameEngine extends ChangeNotifier {
           final s2 = b.enraged ? 4.2 : 3.4;
           projs.add(Proj(b.x + b.w / 2, kFloorY - 14, -s2, 0, 160, 1));
           projs.add(Proj(b.x + b.w / 2, kFloorY - 14, s2, 0, 160, 1));
-          if (en.where((e) => e.hp > 0).length < (b.kind == 1 ? 1 : 4)) {
-            for (int i = 0; i < (b.kind == 1 ? 1 : 2); i++) {
+          if (en.where((e) => e.hp > 0).length < (b.kind == 1 ? 1 : (b.kind == 12 ? 2 : 4))) {
+            for (int i = 0; i < (b.kind == 1 ? 1 : (b.kind == 12 ? (b.ph >= 2 ? 2 : 1) : 2)); i++) {
               final sx = b.x + (i == 0 ? -20 : b.w + 6);
               final nx = math.max(20.0, math.min(cfg.length - 40, sx));
-              final mk = b.kind == 0 ? 2 : ((b.kind == 7 || b.kind == 10) ? 4 : 0);
+              final mk = b.kind == 0 ? 2 : (b.kind == 12 ? 5 : ((b.kind == 7 || b.kind == 10) ? 4 : 0));
               final e = Enemy(nx, kFloorY - 12, math.max(10.0, nx - 160), math.min(cfg.length - 20, nx + 160), mk, rng.nextDouble() * 6);
               e.hp = 1;
               en.add(e);
@@ -1104,6 +1196,41 @@ class GameEngine extends ChangeNotifier {
           b.st = 'stun';
           b.t = 0;
           b.stun = 50;
+        }
+        break;
+      case 'spore':
+        // وابل جراثيم مصوَّب نحو اللاعب (مروحة)، ثم يتعثّر الزعيم وتنكشف نقطة ضعفه
+        if (b.t == 26 || (b.ph >= 3 && b.t == 46)) {
+          final n = b.ph >= 3 ? 5 : (b.ph == 2 ? 4 : 3);
+          final ox = b.x + b.w / 2, oy = b.y + 10;
+          final base = math.atan2((p.y + 11) - oy, px - ox);
+          for (int i = 0; i < n; i++) {
+            final a = base + (i - (n - 1) / 2) * 0.30;
+            projs.add(Proj(ox, oy, math.cos(a) * 2.4, math.sin(a) * 2.4, 220, 3));
+          }
+          shake = 3;
+          _spark(ox, oy, 12, const Color(0xFFB4FF50), add: true);
+        }
+        if (b.t > (b.ph >= 3 ? 72 : 56)) {
+          b.st = 'stun';
+          b.t = 0;
+          b.stun = 64;
+        }
+        break;
+      case 'cloud':
+        // سحب سامة تتشكل حول اللاعب: تحذير ثم ضرر ثم تتلاشى
+        if (b.t == 20 || (b.ph >= 3 && b.t == 52)) {
+          final n = b.ph >= 3 ? 3 : 2;
+          for (int i = 0; i < n; i++) {
+            final cx2 = cl(px + (i - (n - 1) / 2) * 130 + (rng.nextDouble() - .5) * 40, 40.0, cfg.length - 60.0);
+            projs.add(Proj(cx2, kFloorY - 14, 0, 0, 230, 4));
+          }
+          shake = 4;
+        }
+        if (b.t > (b.ph >= 3 ? 84 : 58)) {
+          b.st = 'stun';
+          b.t = 0;
+          b.stun = 60;
         }
         break;
       case 'roar':
@@ -1170,6 +1297,12 @@ class GameEngine extends ChangeNotifier {
     return const ['charge', 'slam', 'quake', 'rain', 'web', 'quake'];
   }
 
+  List<String> _mushPool(int ph) {
+    if (ph <= 1) return const ['spore', 'charge', 'slam', 'spore', 'charge'];
+    if (ph == 2) return const ['spore', 'cloud', 'charge', 'rain', 'slam', 'charge'];
+    return const ['spore', 'cloud', 'quake', 'rain', 'slam', 'ring'];
+  }
+
   List<String> _pool(int k) {
     switch (k) {
       case 0:
@@ -1202,13 +1335,17 @@ class GameEngine extends ChangeNotifier {
       q.x += q.vx;
       q.y += q.vy;
       q.l--;
-      final bx = Box(q.x - 4, q.y - 4, 8, q.kind == 1 ? 14 : 8);
-      if (p.hits(bx) && q.l > 0) {
+      final bx = q.kind == 4 ? Box(q.x - 24, q.y - 18, 48, 34) : Box(q.x - 4, q.y - 4, 8, q.kind == 1 ? 14 : 8);
+      if (p.hits(bx) && q.l > 0 && !(q.kind == 4 && q.l > 200)) {
+        if (q.kind == 4) {
+          _hurt(q.x);
+          continue;
+        }
         q.l = 0;
         _hurt(q.x);
       }
       if (q.kind != 1 && q.y > kFloorY - 2) q.l = 0;
-      if (q.kind == 2 && q.l > 0) {
+      if ((q.kind == 2 || q.kind == 3) && q.l > 0) {
         final pb = Box(q.x - 3, q.y - 3, 6, 6);
         for (final sd in _live) {
           if (pb.hits(sd)) {

@@ -3,6 +3,7 @@ import 'dart:ui' show Color;
 import 'levelgen.dart';
 import 'world1.dart';
 import 'world2.dart';
+import 'world3.dart';
 
 const double kW = 360;
 const double kH = 500;
@@ -96,6 +97,7 @@ class WorldTheme {
   static WorldTheme of(int w) {
     if (w == 1) return cave;
     if (w == 2) return forest;
+    if (w == 3) return mush;
     return _cache.putIfAbsent(w, () => _make(w));
   }
 
@@ -187,6 +189,44 @@ class WorldTheme {
       wood: false,
     );
   }
+
+
+  /// العالم الثالث «كهف الفطر السام»: بنفسجي وأخضر سام متوهج
+  static const WorldTheme mush = WorldTheme(
+    key: 'w3',
+    sky: [Color(0xFF05030C), Color(0xFF120A26), Color(0xFF241046), Color(0xFF123A3A)],
+    blobA: C3(150, 70, 230),
+    blobB: C3(70, 220, 120),
+    moonGlow: C3(190, 150, 255),
+    moonA: Color(0xFFF2E8FF),
+    moonB: Color(0xFFC9B0F0),
+    mt1: [Color(0xFF1E1040), Color(0xFF0C0620), Color(0x52B48CFF)],
+    mt2: [Color(0xFF140A2E), Color(0xFF080416), Color(0x4078E69A)],
+    towers1: 0,
+    fog: C3(120, 220, 140),
+    orb: C3(170, 255, 120),
+    rune: C3(190, 150, 255),
+    wall: WallStyle.bricks,
+    wallHue: 285,
+    wallSat: .38,
+    wallBase: Color(0xFF07040F),
+    archStroke: Color(0xFF3E2A6E),
+    tintTop: Color(0x3A8C46D2),
+    tintBottom: Color(0x8004000E),
+    soil: true,
+    gtHue: 280,
+    gtSat: .34,
+    edge: Color(0xFF6E4AB4),
+    edgeGlow: Color(0x40B48CFF),
+    grass1: Color(0xFF2E8A5A),
+    grass2: Color(0xFF1B4E52),
+    grassTip: Color(0xCCB8FF8C),
+    spikes: [Color(0xFF0A0618), Color(0xFF100824), Color(0xFF06030E)],
+    dark: .5,
+    hazA: Color(0xFF1C1030),
+    hazB: Color(0xFFB4FF50),
+    wood: false,
+  );
 
   static const WorldTheme forest = WorldTheme(
     key: 'forest',
@@ -292,7 +332,21 @@ class RollSpec {
 
 class SpringSpec {
   final double x, y;
-  const SpringSpec(this.x, this.y);
+  /// قوة القفز (1.0 = الافتراضي): فطر نابض يقذف اللاعب لارتفاعات مختلفة
+  final double power;
+  const SpringSpec(this.x, this.y, [this.power = 1.0]);
+}
+
+/// فقاعة سامة عائمة تنفجر عند ملامستها (الضرب بالمطرقة يفجّرها بأمان). تعود بعد فترة
+class BubbleSpec {
+  final double x, y, ax, ay, sp, ph;
+  const BubbleSpec(this.x, this.y, this.ax, this.ay, this.sp, this.ph);
+}
+
+/// منطقة ضباب سام: تقل الرؤية داخلها (تعتيم أخضر حول اللاعب)
+class FogSpec {
+  final double x0, x1, density;
+  const FogSpec(this.x0, this.x1, [this.density = 1.0]);
 }
 
 class KeyDoorSpec {
@@ -355,6 +409,8 @@ class LevelConfig {
   final List<AmbushSpec> ambush;
   /// نقاط الحفظ (إن وُجدت: الموت يعيد اللاعب لآخر نقطة بدل بداية المرحلة)
   final List<CheckSpec> checks;
+  final List<BubbleSpec> bubbles;
+  final List<FogSpec> fogs;
   late final List<Box> solids;
 
   LevelConfig({
@@ -387,6 +443,8 @@ class LevelConfig {
     this.slips = const [],
     this.ambush = const [],
     this.checks = const [],
+    this.bubbles = const [],
+    this.fogs = const [],
   }) {
     solids = [...grounds, ...platforms, ...extra, Box(length - 10, 0, 10, kH), Box(-10, 0, 10, kH)];
   }
@@ -411,7 +469,7 @@ class Worlds {
         [Color(0xFF03050B), Color(0xFF12335A), Color(0xFF1B4A6E)], Color(0xFF1A2A4A)),
     WorldInfo(2, 'الغابة الملعونة', 'أشجار ضخمة وعناكب سامة وجسور معلقة', 'ملك العناكب', true,
         [Color(0xFF020806), Color(0xFF0C3523), Color(0xFF16553A)], Color(0xFF2A1F14)),
-    WorldInfo(3, 'كهف الفطر السام', 'فطر عملاق مضيء وأرضيات سامة', 'وحش الفطر العملاق', true,
+    WorldInfo(3, 'كهف الفطر السام', 'فطر عملاق وبحيرات سامة وجذور حية وضباب قاتل', 'ملك الفطر السام', true,
         [Color(0xFF0A0614), Color(0xFF2A1048), Color(0xFF5A2A7A)], Color(0xFF2A1840)),
     WorldInfo(4, 'قلعة الهياكل العظمية', 'أعمدة وتماثيل وأفخاخ وسهام', 'ملك الهياكل العظمية', true,
         [Color(0xFF080808), Color(0xFF26262E), Color(0xFF3E3E4A)], Color(0xFF2A2A34)),
@@ -444,9 +502,15 @@ class LevelFactory {
     'الغابة الهامسة', 'المستنقع الأخضر', 'الجسور المعلقة', 'وكر العناكب', 'عرين ملك العناكب'
   ];
 
+  static const _names3 = [
+    'مدخل الكهف', 'غابة الفطريات العملاقة', 'بحيرة السموم', 'ممر الجذور الحية', 'مستنقع الجراثيم',
+    'متاهة الفطر', 'الهاوية الفطرية', 'قلب الكهف', 'مملكة الجراثيم', 'عرش الفطر السام'
+  ];
+
   static String nameOf(int w, int i) {
     if (w == 1) return _names1[i - 1];
     if (w == 2) return _names2[i - 1];
+    if (w == 3) return _names3[i - 1];
     return '${Worlds.of(w).name} $i';
   }
 
@@ -455,6 +519,8 @@ class LevelFactory {
     if (world == 1) return World1.build(idx);
     // العالم الثاني «الغابة»: المراحل العشر مصمَّمة يدوياً
     if (world == 2) return World2.build(idx);
+    // العالم الثالث «كهف الفطر السام»: المراحل العشر مصمَّمة يدوياً
+    if (world == 3) return World3.build(idx);
     final cfg = LevelGen.build(world, idx);
     return _solidFloor(cfg);
   }

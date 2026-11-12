@@ -139,10 +139,11 @@ class Nature {
       case 'w3': // كهف الفطر السام
         return [
           ..._rocks,
-          const NatSpec('n_mush', 110, 44, 90, glow: C3(200, 120, 255)),
-          const NatSpec('n_lae', 160, 24, 44, glow: C3(255, 150, 220)),
-          const NatSpec('n_fern', 220, 24, 36),
-          const NatSpec('n_plant1', 280, 26, 40),
+          const NatSpec('n_mush', 330, 170, 250, layer: 0, dk: .3, glow: C3(190, 130, 255)),
+          const NatSpec('n_mush', 150, 40, 84, glow: C3(150, 255, 130)),
+          const NatSpec('n_lae', 150, 24, 44, glow: C3(255, 150, 220)),
+          const NatSpec('n_fern', 200, 24, 38),
+          const NatSpec('n_plant1', 260, 26, 40),
         ];
       case 'w4': // قلعة الهياكل
         return [
