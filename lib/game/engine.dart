@@ -120,7 +120,7 @@ class KeyDoorO {
   int anim = 0;
   KeyDoorO(KeyDoorSpec spec)
       : s = spec,
-        door = Box(spec.dx, kFloorY - 110, 22, 110);
+        door = Box(spec.dx, spec.bottom - 110, 22, 110);
 }
 
 class VanishP extends Box {
@@ -151,6 +151,7 @@ class Boss extends Box {
   String st = 'sleep';
   int t = 0, hit = 0, stun = 0, cd = 90, dead = 0, dir = -1;
   bool enraged = false;
+  int ph = 1; // مرحلة القتال (الحارس الحجري: 1..3)
   Boss(double x, double y, this.hp, this.name, this.kind)
       : maxHp = hp,
         super(x, y, 96, 56);
@@ -201,6 +202,9 @@ class GameEngine extends ChangeNotifier {
   double cam = 0, vw = kW;
   int t = 0, shake = 0, cp = 30, deadT = 0, playFrames = 0, kills = 0, collected = 0, flash = 0;
   int bossIntro = 0, atkBuf = 0, dashBuf = 0;
+  // نقاط الحفظ (المراحل التي تحتوي cfg.checks)
+  double cpX = 30, cpY = 418, safeX = 30, safeY = 418;
+  int cpIdx = -1;
 
   double _acc = 0, _last = 0;
 
@@ -232,6 +236,11 @@ class GameEngine extends ChangeNotifier {
     if (full) {
       cp = 30;
       p.x = 30;
+      cpX = 30;
+      cpY = 418;
+      safeX = 30;
+      safeY = 418;
+      cpIdx = -1;
       en = cfg.enemies.map((a) {
         final y = (a.y ?? kFloorY) - 12;
         return Enemy(a.x, y, a.min, a.max, a.kind, rng.nextDouble() * 6);
@@ -302,8 +311,12 @@ class GameEngine extends ChangeNotifier {
     if (phase == Phase.dead) {
       deadT++;
       if (deadT > 110) {
-        reset(true);
-        phase = Phase.playing;
+        if (cfg.checks.isNotEmpty) {
+          _respawn();
+        } else {
+          reset(true);
+          phase = Phase.playing;
+        }
         notifyListeners();
       }
       return;
@@ -320,6 +333,72 @@ class GameEngine extends ChangeNotifier {
     _updatePlayer();
     if (boss != null) _updateBoss();
     _updateProjs();
+  }
+
+  /// الموت في مراحل نقاط الحفظ: العودة لآخر نقطة حفظ بكامل القلوب (التقدم المحرَز يبقى)
+  void _respawn() {
+    p = Player()
+      ..x = cpX - 7
+      ..y = cpY - 22;
+    p.hp = maxHp;
+    p.inv = 90;
+    safeX = p.x;
+    safeY = p.y;
+    projs.clear();
+    for (final f in fallers) {
+      f.st = 0;
+      f.tm = f.s.phase.toInt();
+      f.y = -30;
+      f.vy = 0;
+    }
+    for (final r in rollers) {
+      r.active = false;
+      r.tm = r.s.phase.toInt();
+    }
+    final bs = cfg.boss;
+    if (bs != null && boss != null && boss!.st != 'dead') {
+      boss = Boss(bs.x, kFloorY - 56, bs.hp, bs.name, bs.kind);
+      en.clear();
+      bossHitFlag = false;
+      bossIntro = 0;
+    }
+    cam = math.max(0.0, math.min(cfg.length - vw, p.x - vw / 2));
+    phase = Phase.playing;
+  }
+
+  /// يلتقط نقطة الحفظ عند الاقتراب منها (بالترتيب فقط)
+  void _checkCheckpoints() {
+    final cs = cfg.checks;
+    for (int i = cpIdx + 1; i < cs.length; i++) {
+      final c = cs[i];
+      if (((p.x + 7) - c.x).abs() < 26 && p.g && ((p.y + p.h) - c.gy).abs() < 6) {
+        cpIdx = i;
+        cpX = c.x;
+        cpY = c.gy;
+        _spark(c.x, c.gy - 24, 22, const Color(0xFF9FE8FF), add: true);
+        flash = 4;
+        HapticFeedback.selectionClick();
+        break;
+      }
+    }
+  }
+
+  /// آخر موضع آمن (أرض ثابتة بعيدة عن الفخاخ) لإعادة اللاعب إليه بعد السقوط في الهاوية
+  void _trackSafe() {
+    if (!p.g || p.inv > 0) return;
+    for (final h in haz) {
+      if (Box(h.x - 26, h.y - 30, h.w + 52, h.h + 60).hits(p)) return;
+    }
+    for (final h in timedH) {
+      if (Box(h.s.x - 26, h.s.y - 30, h.s.w + 52, h.s.h + 60).hits(p)) return;
+    }
+    for (final s in cfg.solids) {
+      if (s.w >= 24 && _onTop(s)) {
+        safeX = math.max(s.x + 4, math.min(s.x + s.w - p.w - 4, p.x));
+        safeY = s.y - p.h;
+        return;
+      }
+    }
   }
 
   // ---------- العناصر المتحركة
@@ -440,6 +519,11 @@ class GameEngine extends ChangeNotifier {
     // فخاخ زمنية
     for (final h in timedH) {
       final s = h.s;
+      if (s.minPhase > 0 && (boss == null || boss!.ph < s.minPhase)) {
+        h.on = false;
+        h.warn = false;
+        continue;
+      }
       if (s.kind == 6) {
         h.on = true;
         h.warn = false;
@@ -691,20 +775,29 @@ class GameEngine extends ChangeNotifier {
       }
     }
 
-    for (final s in cfg.grounds) {
+    if (cfg.checks.isEmpty) for (final s in cfg.grounds) {
       if (s.x + 20 < p.x && s.x + 30 > cp && p.g) {
         cp = (s.x + 30).toInt();
         _spark(p.x + 7, p.y + 10, 18, const Color(0xFF9FE8FF), add: true);
         HapticFeedback.selectionClick();
       }
     }
+    if (cfg.checks.isNotEmpty) {
+      _checkCheckpoints();
+      _trackSafe();
+    }
     if (p.y > kH + 40) {
       p.hp--;
       shake = 8;
-      p.x = cp.toDouble();
-      p.y = 380;
+      if (cfg.checks.isNotEmpty) {
+        p.x = safeX;
+        p.y = safeY;
+      } else {
+        p.x = cp.toDouble();
+        p.y = 380;
+      }
       p.vx = p.vy = 0;
-      p.inv = 60;
+      p.inv = cfg.checks.isNotEmpty ? 100 : 60;
       if (p.hp <= 0) {
         _die();
         return;
@@ -738,7 +831,7 @@ class GameEngine extends ChangeNotifier {
       }
     }
     final b = boss;
-    if (b != null && b.st != 'sleep' && b.st != 'intro' && b.st != 'dead') {
+    if (b != null && b.st != 'sleep' && b.st != 'intro' && b.st != 'dead' && b.st != 'roar') {
       if (p.atk > 8 && p.atk < 17 && !bossHitFlag && ab.hits(b)) {
         bossHitFlag = true;
         final dmg = hammerDmg * (b.st == 'stun' ? 2 : 1);
@@ -756,7 +849,7 @@ class GameEngine extends ChangeNotifier {
           kills++;
         }
       }
-      if (b.st != 'stun' && b.st != 'dead' && p.hits(b)) {
+      if (b.st != 'stun' && b.st != 'dead' && b.st != 'roar' && p.hits(b)) {
         if (_hurt(b.x + b.w / 2)) return;
       }
     }
@@ -884,7 +977,8 @@ class GameEngine extends ChangeNotifier {
       }
       return;
     }
-    if (b.hp <= b.maxHp * 0.4 && !b.enraged) {
+    if (b.kind == 1) _guardianPhase(b);
+    if (b.kind != 1 && b.hp <= b.maxHp * 0.4 && !b.enraged) {
       b.enraged = true;
       shake = 14;
       _spark(b.x + b.w / 2, b.y + 20, 40, const Color(0xFFFF4A3A), add: true);
@@ -913,7 +1007,7 @@ class GameEngine extends ChangeNotifier {
         b.x = math.max(4.0, math.min(cfg.length - 14 - b.w, b.x));
         b.cd--;
         if (b.cd <= 0) {
-          final pl = _pool(b.kind);
+          final pl = b.kind == 1 ? _guardPool(b.ph) : _pool(b.kind);
           b.st = pl[rng.nextInt(pl.length)];
           b.t = 0;
         }
@@ -997,8 +1091,8 @@ class GameEngine extends ChangeNotifier {
           final s2 = b.enraged ? 4.2 : 3.4;
           projs.add(Proj(b.x + b.w / 2, kFloorY - 14, -s2, 0, 160, 1));
           projs.add(Proj(b.x + b.w / 2, kFloorY - 14, s2, 0, 160, 1));
-          if (en.where((e) => e.hp > 0).length < 4) {
-            for (int i = 0; i < 2; i++) {
+          if (en.where((e) => e.hp > 0).length < (b.kind == 1 ? 1 : 4)) {
+            for (int i = 0; i < (b.kind == 1 ? 1 : 2); i++) {
               final sx = b.x + (i == 0 ? -20 : b.w + 6);
               final nx = math.max(20.0, math.min(cfg.length - 40, sx));
               final mk = b.kind == 0 ? 2 : ((b.kind == 7 || b.kind == 10) ? 4 : 0);
@@ -1012,6 +1106,36 @@ class GameEngine extends ChangeNotifier {
           b.stun = 50;
         }
         break;
+      case 'roar':
+        // تحوّل الحارس إلى مرحلة جديدة: زئير ووابل صخور (لا يتلقى ضرراً أثناءه)
+        if (b.t % 16 == 4 && b.t < 80) {
+          final tx = cl(px + (rng.nextDouble() - .5) * 200, 20.0, cfg.length - 20.0);
+          projs.add(Proj(tx, -10, 0, 3.4, 220, 2));
+        }
+        if (b.t % 20 == 0) {
+          shake = 10;
+        }
+        if (b.t > 90) {
+          b.st = 'idle';
+          b.cd = 36;
+        }
+        break;
+      case 'quake':
+        // سلسلة موجات أرضية متتالية: يجب القفز أو الوقوف على منصة
+        final qn = b.ph >= 3 ? 4 : 3;
+        if (b.t % 34 == 20 && b.t < 20 + 34 * qn) {
+          shake = 9;
+          final qs = b.ph >= 3 ? 3.8 : 3.2;
+          projs.add(Proj(b.x + b.w / 2, kFloorY - 14, -qs, 0, 170, 1));
+          projs.add(Proj(b.x + b.w / 2, kFloorY - 14, qs, 0, 170, 1));
+          HapticFeedback.mediumImpact();
+        }
+        if (b.t > 20 + 34 * qn + 30) {
+          b.st = 'stun';
+          b.t = 0;
+          b.stun = 70;
+        }
+        break;
       case 'stun':
         b.stun--;
         if (b.stun <= 0) {
@@ -1020,6 +1144,30 @@ class GameEngine extends ChangeNotifier {
         }
         break;
     }
+  }
+
+  /// الحارس الحجري: ينتقل بين ثلاث مراحل عند 67٪ و34٪ من صحته
+  void _guardianPhase(Boss b) {
+    if (b.st == 'roar' || b.st == 'intro' || b.st == 'sleep' || b.st == 'dead') return;
+    final r = b.hp / b.maxHp;
+    final np = r <= 0.34 ? 3 : (r <= 0.67 ? 2 : 1);
+    if (np > b.ph) {
+      b.ph = np;
+      b.st = 'roar';
+      b.t = 0;
+      b.vx = 0;
+      projs.clear();
+      if (np >= 3) b.enraged = true;
+      shake = 16;
+      _spark(b.x + b.w / 2, b.y + 20, 36, np >= 3 ? const Color(0xFFFF4A3A) : const Color(0xFFFFB347), add: true);
+      HapticFeedback.heavyImpact();
+    }
+  }
+
+  List<String> _guardPool(int ph) {
+    if (ph <= 1) return const ['charge', 'slam', 'charge', 'slam'];
+    if (ph == 2) return const ['charge', 'slam', 'quake', 'rain'];
+    return const ['charge', 'slam', 'quake', 'rain', 'web', 'quake'];
   }
 
   List<String> _pool(int k) {

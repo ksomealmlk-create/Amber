@@ -1,6 +1,7 @@
 // نظام المراحل: ثوابت، ثيمات العوالم، LevelConfig، ومصنع المراحل
 import 'dart:ui' show Color;
 import 'levelgen.dart';
+import 'world1.dart';
 
 const double kW = 360;
 const double kH = 500;
@@ -269,7 +270,9 @@ class BreakSpec {
 class TimedSpec {
   final int kind;
   final double x, y, w, h, period, on, phase;
-  const TimedSpec(this.kind, this.x, this.y, this.w, this.h, this.period, this.on, this.phase);
+  /// > 0: لا يعمل الفخ إلا عندما يصل الزعيم إلى هذه المرحلة من القتال (ساحة الحارس الحجري)
+  final int minPhase;
+  const TimedSpec(this.kind, this.x, this.y, this.w, this.h, this.period, this.on, this.phase, [this.minPhase = 0]);
 }
 
 /// جسم يسقط من السقف مع تحذير: 0 صخرة، 1 جليد، 2 صخرة نارية، 3 غصن، 4 شظية كريستال، 5 كتلة فطر
@@ -293,7 +296,15 @@ class SpringSpec {
 
 class KeyDoorSpec {
   final double kx, ky, dx;
-  const KeyDoorSpec(this.kx, this.ky, this.dx);
+  /// y لأسفل الباب (الافتراضي: الأرضية)
+  final double bottom;
+  const KeyDoorSpec(this.kx, this.ky, this.dx, [this.bottom = kFloorY]);
+}
+
+/// نقطة حفظ: x مركز الفانوس، gy سطح الأرض الذي يقف عليه اللاعب عند الاستعادة
+class CheckSpec {
+  final double x, gy;
+  const CheckSpec(this.x, this.gy);
 }
 
 /// منصة تختفي وتظهر (period > 0) أو منصة مخفية تنكشف عند الاقتراب (hidden)
@@ -341,6 +352,8 @@ class LevelConfig {
   final List<VanishSpec> vanish;
   final List<SlipSpec> slips;
   final List<AmbushSpec> ambush;
+  /// نقاط الحفظ (إن وُجدت: الموت يعيد اللاعب لآخر نقطة بدل بداية المرحلة)
+  final List<CheckSpec> checks;
   late final List<Box> solids;
 
   LevelConfig({
@@ -372,6 +385,7 @@ class LevelConfig {
     this.vanish = const [],
     this.slips = const [],
     this.ambush = const [],
+    this.checks = const [],
   }) {
     solids = [...grounds, ...platforms, ...extra, Box(length - 10, 0, 10, kH), Box(-10, 0, 10, kH)];
   }
@@ -421,8 +435,8 @@ class Worlds {
 // ---------- مصنع المراحل
 class LevelFactory {
   static const _names1 = [
-    'بداية الطريق', 'الممر المظلم', 'قفزة الإيمان', 'جسور الهمس', 'كهف البلّور',
-    'ممر الأشواك', 'غرفة الأصداء', 'الدرب المنهار', 'بوابة الظلال', 'عتبة النور'
+    'مدخل الكهف', 'ممر الشرارات', 'جسور الهاوية', 'مصعد الأعماق', 'مطر الصخور',
+    'سرداب المفاتيح', 'الدربان', 'مصنع الصواعق', 'محنة المغارة', 'عرين الحارس الحجري'
   ];
   static const _names2 = [
     'حافة الغابة', 'الجذور الملتوية', 'جسر الخيوط', 'ممر الأغصان', 'عش الصغار',
@@ -436,7 +450,9 @@ class LevelFactory {
   }
 
   static LevelConfig build(int world, int idx) {
-    final cfg = (world == 1 && idx == 1) ? _level1() : LevelGen.build(world, idx);
+    // العالم الأول «المغارة المنسية»: عشر مراحل مصمَّمة يدوياً (أرضيات بفجوات حقيقية، لا تُملأ)
+    if (world == 1) return World1.build(idx);
+    final cfg = LevelGen.build(world, idx);
     return _solidFloor(cfg);
   }
 

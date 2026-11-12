@@ -124,6 +124,7 @@ class GamePainter extends CustomPainter {
     }
     _props(c, 0);
     _platforms(c);
+    _checkpoints(c);
     _crumbles(c);
     _movers(c);
     _hazards(c);
@@ -238,6 +239,31 @@ class GamePainter extends CustomPainter {
         sp.close();
       }
       c.drawPath(sp, _fill(th.spikes[0]));
+    }
+  }
+
+  /// نقاط الحفظ: فانوس على عمود، يضيء عند التفعيل
+  void _checkpoints(Canvas c) {
+    final cs = cfg.checks;
+    if (cs.isEmpty) return;
+    final t = e.t;
+    for (int i = 0; i < cs.length; i++) {
+      final k = cs[i];
+      final px = k.x - e.cam;
+      if (px < -40 || px > vw + 40) continue;
+      final lit = e.cpIdx >= i;
+      final gy = k.gy;
+      c.drawRect(Rect.fromLTWH(px - 2, gy - 46, 4, 46), _fill(const Color(0xFF3A3F4A)));
+      c.drawRect(Rect.fromLTWH(px - 8, gy - 4, 16, 4), _fill(const Color(0xFF2A2E38)));
+      c.drawLine(Offset(px, gy - 46), Offset(px + 9, gy - 46), Paint()..color = const Color(0xFF555A66)..strokeWidth = 2);
+      final ly = gy - 40;
+      final lx = px + 9;
+      c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(lx - 5, ly, 10, 14), const Radius.circular(3)), _fill(lit ? const Color(0xFFFFD27A) : const Color(0xFF4A505E)));
+      if (lit) {
+        glow(c, lx, ly + 7, 34 + math.sin(t / 8.0) * 4, const C3(255, 190, 90), .6, add: true);
+      } else {
+        glow(c, lx, ly + 7, 14, const C3(140, 180, 255), .25 + math.sin(t / 20.0) * .08, add: true);
+      }
     }
   }
 
@@ -992,6 +1018,8 @@ class GamePainter extends CustomPainter {
     final stun = b.st == 'stun';
     double shk = 0;
     if (b.st == 'charge' && b.t < 32) shk = math.sin(t * 1.8) * 2.2;
+    if (b.st == 'roar') shk = math.sin(t * 2.2) * 3;
+    if (b.st == 'quake' && b.t < 20) shk = math.sin(t * 1.8) * 2;
     if (b.st == 'dead') shk = math.sin(t * 2.4) * 3;
     final cy = b.y + b.h / 2;
     final face = b.dir.toDouble();
@@ -1012,7 +1040,7 @@ class GamePainter extends CustomPainter {
     final pl = pal[k] ?? pal[11]!;
     final base = flashed ? Colors.white : pl[0];
     final sec = flashed ? Colors.white : pl[1];
-    final gl = pl[2];
+    final gl = (k == 1 && b.ph == 2) ? const Color(0xFFFFB347) : ((k == 1 && b.ph >= 3) ? const Color(0xFFFF4A3A) : pl[2]);
     final glc = C3(gl.red, gl.green, gl.blue);
     c.saveLayer(Rect.fromLTWH(cx - 150, cy - 130, 300, 220), Paint()..color = Color.fromRGBO(255, 255, 255, fade));
     c.translate(shk, 0);
