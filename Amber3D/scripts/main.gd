@@ -1,7 +1,7 @@
 extends Node3D
 # نقطة الدخول: يجمع العالم والمحاكاة والبطل والكاميرا والواجهة، ويشغّل حلقة 60 خطوة/ثانية مع استيفاء للرسم.
 
-const LevelData = preload("res://scripts/level_data.gd")
+const Session = preload("res://scripts/session.gd")
 const Sim = preload("res://scripts/sim.gd")
 const Mats = preload("res://scripts/mats.gd")
 const WorldNode = preload("res://scripts/world.gd")
@@ -34,7 +34,7 @@ var started := false
 
 func _ready() -> void:
 	get_viewport().msaa_3d = Viewport.MSAA_2X
-	var level: Dictionary = LevelData.LEVEL
+	var level: Dictionary = Session.current()
 	mats = Mats.new()
 	sim = Sim.new(level)
 
