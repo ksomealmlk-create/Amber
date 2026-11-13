@@ -1,0 +1,27 @@
+name: Build Amber3D APK
+on:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup
+        run: |
+          mkdir -v -p ~/.local/share/godot/export_templates/
+          mv /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable || true
+          mkdir -v -p ~/.config/godot
+          cp Amber3D/tools/debug.keystore /root/debug.keystore
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "/usr/lib/android-sdk"\nexport/android/debug_keystore = "/root/debug.keystore"\nexport/android/debug_keystore_user = "androiddebugkey"\nexport/android/debug_keystore_pass = "android"\nexport/android/force_system_user = false\nexport/android/shutdown_adb_on_exit = true\n' > ~/.config/godot/editor_settings-4.tres
+      - name: Import
+        run: godot --headless --verbose --path Amber3D --import || true
+      - name: Export
+        run: |
+          mkdir -p build
+          godot --headless --verbose --path Amber3D --export-debug "Android" "$GITHUB_WORKSPACE/build/Amber3D.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Amber3D-apk
+          path: build/Amber3D.apk
