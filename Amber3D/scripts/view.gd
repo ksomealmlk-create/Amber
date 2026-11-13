@@ -138,7 +138,7 @@ func _crumbles() -> void:
 		var wu: float = c.w * S
 		U.box(root, Vector3.ZERO, Vector3(wu, 0.7, 3.0), mats.stone(Color("5a5068"), 0.4))
 		U.box(root, Vector3(0, 0.37, 0), Vector3(wu, 0.06, 3.1), mats.stone(Color("77708a"), 0.4))
-		var crack := mats.glow_unique(Color("ff7a2a"), 0.2)
+		var crack = mats.glow_unique(Color("ff7a2a"), 0.2)
 		U.box(root, Vector3(-wu * 0.2, 0.1, 1.52), Vector3(wu * 0.35, 0.05, 0.04), crack, Vector3(0, 0, 0.3))
 		U.box(root, Vector3(wu * 0.18, -0.1, 1.52), Vector3(wu * 0.3, 0.05, 0.04), crack, Vector3(0, 0, -0.4))
 		crumb_nodes.append({"root": root, "base": root.position, "crack": crack})
@@ -180,7 +180,7 @@ func _timed() -> void:
 			# أشواك تخرج من الأرض عند الإنذار
 			root.position = U.v(cx, h.y + h.h, 0.0)
 			U.box(root, Vector3(0, 0.02, 0), Vector3(wu + 0.2, 0.08, 1.4), mats.plain(Color("1f2330"), 0.5, 0.7))
-			var slit := mats.glow_unique(Color("ff3a2a"), 0.2)
+			var slit = mats.glow_unique(Color("ff3a2a"), 0.2)
 			U.box(root, Vector3(0, 0.07, 0.0), Vector3(wu * 0.8, 0.03, 0.1), slit)
 			var grp := Node3D.new()
 			root.add_child(grp)
@@ -192,7 +192,7 @@ func _timed() -> void:
 		else:
 			# سلك كهربائي عمودي بين مصدرين
 			root.position = U.v(cx, h.y + h.h * 0.5, 0.0)
-			var orb := mats.glow_unique(Color("7fd0ff"), 0.6)
+			var orb = mats.glow_unique(Color("7fd0ff"), 0.6)
 			U.sphere(root, Vector3(0, hu * 0.5, 0), 0.2, orb, Vector3.ONE, 8)
 			U.sphere(root, Vector3(0, -hu * 0.5, 0), 0.2, orb, Vector3.ONE, 8)
 			U.cyl(root, Vector3(0, hu * 0.5 + 0.18, 0), 0.12, 0.12, 0.3, mats.plain(Color("2b2f3a"), 0.4, 0.8), 8)
@@ -262,7 +262,7 @@ func _vanish() -> void:
 		m.emission_energy_multiplier = 0.4
 		var slab := U.box(root, Vector3.ZERO, Vector3(wu, 0.7, 3.0), m)
 		slab.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var rune := mats.glow_unique(Color("b59bff"), 1.0)
+		var rune = mats.glow_unique(Color("b59bff"), 1.0)
 		var rl := U.box(root, Vector3(0, 0.37, 0.0), Vector3(wu * 0.8, 0.04, 0.5), rune)
 		rl.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		vanish_nodes.append({"mat": m, "rune": rune})
@@ -279,7 +279,7 @@ func _chests() -> void:
 		U.box(root, Vector3(0, 0.32, 0), Vector3(1.1, 0.64, 0.8), wood)
 		for sx in [-1.0, 1.0]:
 			U.box(root, Vector3(sx * 0.42, 0.32, 0), Vector3(0.12, 0.66, 0.84), iron)
-		var inner := mats.glow_unique(Color("ffd27a"), 0.0)
+		var inner = mats.glow_unique(Color("ffd27a"), 0.0)
 		var glow_quad := U.box(root, Vector3(0, 0.64, 0), Vector3(0.95, 0.04, 0.66), inner)
 		var hinge := Node3D.new()
 		hinge.position = Vector3(0, 0.64, -0.4)
@@ -307,7 +307,7 @@ func _checks() -> void:
 		U.cyl(root, Vector3(0, 0.1, 0), 0.4, 0.5, 0.2, mats.stone(Color("3a4560"), 0.4), 8)
 		U.cyl(root, Vector3(0, 1.0, 0), 0.07, 0.1, 1.8, mats.plain(Color("2b3140"), 0.4, 0.8), 6)
 		U.box(root, Vector3(0, 2.1, 0), Vector3(0.62, 0.1, 0.62), mats.plain(Color("2b3140"), 0.4, 0.8))
-		var gm := mats.glow_unique(Color("9fe8ff"), 0.4)
+		var gm = mats.glow_unique(Color("9fe8ff"), 0.4)
 		U.box(root, Vector3(0, 1.8, 0), Vector3(0.42, 0.5, 0.42), gm)
 		U.cyl(root, Vector3(0, 2.25, 0), 0.0, 0.4, 0.3, mats.plain(Color("2b3140"), 0.4, 0.8), 4)
 		var l := OmniLight3D.new()
