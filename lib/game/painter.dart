@@ -217,7 +217,8 @@ class GamePainter extends CustomPainter {
     final p = Paint()..filterQuality = FilterQuality.medium;
     for (final o in a.props) {
       if (o.layer != layer) continue;
-      final img = a.sp[o.dark ? '${o.k}_d' : o.k]!;
+      final img = o.k.startsWith('wp:') ? a.wp[o.k.substring(3)] : a.sp[o.dark ? '${o.k}_d' : o.k];
+      if (img == null) continue;
       final w = o.h * img.width / img.height;
       final px = o.x - cam;
       if (px + w < 0 || px - w > vw) continue;
@@ -229,7 +230,7 @@ class GamePainter extends CustomPainter {
       if (o.glw != null) {
         glow(c, px, kFloorY - o.h * .5, o.h * 1.2, o.glw!, .30 + math.sin(e.t / 40 + o.x) * .08, add: true);
       }
-      c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), Rect.fromLTWH(px - w / 2, kFloorY - o.h, w, o.h), pp);
+      c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), Rect.fromLTWH(px - w / 2, o.top ?? (kFloorY - o.h), w, o.h), pp);
     }
   }
 

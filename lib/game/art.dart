@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'level.dart';
+import 'world_props.dart';
 
 double hh(double n) {
   final v = math.sin(n * 127.1) * 43758.5453;
@@ -49,7 +50,134 @@ class Prop {
   final int layer;
   final bool dark;
   final C3? glw;
-  Prop(this.k, this.x, this.h, this.layer, this.dark, this.glw);
+  final double? top; // إن وُجد: يُرسم المجسم من هذا الارتفاع (معلّق/عائم) بدل الوقوف على الأرض
+  Prop(this.k, this.x, this.h, this.layer, this.dark, this.glw, {this.top});
+}
+
+/// وصف توزيع مجموعة مجسمات في عالم: mode 0 على الأرض، 1 معلّق من السقف، 2 عائم بارتفاع t0..t1
+class WpSpec {
+  final String g;
+  final double every, h0, h1, t0, t1;
+  final int layer, mode;
+  final C3? glow;
+  const WpSpec(this.g, this.every, this.h0, this.h1, {this.layer = 1, this.mode = 0, this.t0 = 100, this.t1 = 260, this.glow});
+}
+
+/// خطة مجسمات كل عالم (الصور في assets/world_props/<world>/)
+class WpPlan {
+  static List<WpSpec> forWorld(int w) {
+    switch (w) {
+      case 1:
+        return const [
+          WpSpec('ground', 300, 50, 95, layer: 0),
+          WpSpec('ceiling', 360, 90, 170, layer: 0, mode: 1),
+          WpSpec('glow', 170, 34, 70, glow: C3(90, 220, 255)),
+          WpSpec('plants', 240, 26, 44),
+        ];
+      case 2:
+        return const [
+          WpSpec('trees', 380, 190, 270, layer: 0),
+          WpSpec('vines', 520, 150, 230, layer: 0),
+          WpSpec('hanging', 450, 120, 220, layer: 0, mode: 1),
+          WpSpec('rocks', 330, 30, 60),
+          WpSpec('plants', 160, 26, 48),
+        ];
+      case 3:
+        return const [
+          WpSpec('glow', 150, 40, 80, glow: C3(190, 130, 255)),
+          WpSpec('pods', 260, 30, 60),
+          WpSpec('plants', 200, 26, 44),
+          WpSpec('rocks', 380, 30, 56),
+          WpSpec('hanging', 420, 120, 220, layer: 0, mode: 1),
+        ];
+      case 4:
+        return const [
+          WpSpec('structures', 700, 170, 230, layer: 0),
+          WpSpec('gates', 650, 70, 100, layer: 0, mode: 2, t0: 110, t1: 200),
+          WpSpec('ruins', 330, 40, 90),
+        ];
+      case 5:
+        return const [
+          WpSpec('ground', 260, 50, 100, layer: 0),
+          WpSpec('ceiling', 340, 90, 180, layer: 0, mode: 1),
+          WpSpec('vines', 600, 140, 210, layer: 0),
+        ];
+      case 6:
+        return const [
+          WpSpec('trees', 420, 190, 280, layer: 0),
+          WpSpec('ground', 280, 50, 100, layer: 0),
+          WpSpec('ceiling', 320, 90, 170, layer: 0, mode: 1),
+          WpSpec('plants', 260, 24, 40),
+        ];
+      case 7:
+        return const [
+          WpSpec('crypts', 650, 100, 150, layer: 0),
+          WpSpec('fences', 380, 50, 80, layer: 0),
+          WpSpec('graves', 170, 44, 90),
+          WpSpec('props', 230, 36, 90),
+        ];
+      case 8:
+        return const [
+          WpSpec('columns', 480, 190, 240, layer: 0),
+          WpSpec('arches', 700, 180, 230, layer: 0),
+          WpSpec('statues', 500, 90, 150, layer: 0),
+          WpSpec('gates', 650, 70, 100, layer: 0, mode: 2, t0: 100, t1: 200),
+          WpSpec('light', 400, 36, 56, glow: C3(255, 190, 90)),
+        ];
+      case 9:
+        return const [
+          WpSpec('ground', 260, 50, 100, layer: 0),
+          WpSpec('ceiling', 320, 90, 170, layer: 0, mode: 1),
+          WpSpec('glow', 190, 36, 70, glow: C3(120, 230, 255)),
+          WpSpec('pods', 300, 30, 60),
+          WpSpec('gems', 380, 22, 34, glow: C3(255, 120, 220)),
+        ];
+      case 10:
+        return const [
+          WpSpec('structures', 700, 170, 230, layer: 0),
+          WpSpec('fences', 400, 60, 100, layer: 0),
+          WpSpec('gates', 650, 70, 100, layer: 0, mode: 2, t0: 110, t1: 200),
+          WpSpec('ruins', 330, 40, 90),
+        ];
+      case 11:
+        return const [
+          WpSpec('platforms', 520, 56, 100, layer: 0, mode: 2, t0: 90, t1: 290),
+          WpSpec('hanging', 480, 120, 220, layer: 0, mode: 1),
+          WpSpec('rocks', 340, 30, 60),
+          WpSpec('plants', 190, 26, 48),
+          WpSpec('glow', 200, 40, 80, glow: C3(200, 140, 255)),
+          WpSpec('crystals', 380, 36, 70, glow: C3(190, 130, 255)),
+        ];
+    }
+    return const [];
+  }
+}
+
+/// صور مجسمات العوالم الجديدة (assets/world_props): تُحمَّل مرة لكل عالم وتُشارَك بين مراحله
+class WorldImgs {
+  static const skip = {'creatures', 'hazards', 'far'};
+  static final Map<int, Map<String, ui.Image>> cache = {};
+
+  static Future<Map<String, ui.Image>> get(int world) async {
+    final hit = cache[world];
+    if (hit != null) return hit;
+    final out = <String, ui.Image>{};
+    final set = kWorldProps[world];
+    if (set != null) {
+      for (final g in set.props.entries) {
+        if (skip.contains(g.key)) continue;
+        for (final f in g.value) {
+          try {
+            final bd = await rootBundle.load(set.prop(f));
+            final codec = await ui.instantiateImageCodec(bd.buffer.asUint8List(), targetHeight: 256);
+            out['${g.key}/$f'] = (await codec.getNextFrame()).image;
+          } catch (_) {}
+        }
+      }
+    }
+    cache[world] = out;
+    return out;
+  }
 }
 
 class Arch {
@@ -278,6 +406,7 @@ class Art {
   late Paint gtPaint, woodPaint;
   final List<Arch> arches = [];
   final List<Prop> props = [];
+  Map<String, ui.Image> wp = {}; // مجسمات العالم الجديدة (إن وُجدت)
   static const double ps = 2;
 
   Art(this.sp, this.cfg) : th = cfg.theme;
@@ -287,7 +416,10 @@ class Art {
   static Future<Art> build(Map<String, ui.Image> sp, LevelConfig cfg) async {
     final a = Art(sp, cfg);
     await a._build();
-    if (cfg.classic) {
+    a.wp = await WorldImgs.get(cfg.world);
+    if (a.wp.isNotEmpty) {
+      a._wpProps();
+    } else if (cfg.classic) {
       a._classicProps();
     } else {
       a._genProps();
@@ -707,6 +839,38 @@ class Art {
       arches.add(Arch(x, 14 + r() * 8, 250));
     }
     _wallTint(g, w, h);
+  }
+
+  // ---------------- ديكور العوالم الجديدة (assets/world_props)
+  void _wpProps() {
+    final r = mkr(cfg.seed * 977 + 11);
+    final set = kWorldProps[cfg.world];
+    void add(String k, double x, double h, int layer, C3? g, {double? top}) => props.add(Prop('wp:$k', x, h, layer, false, g, top: top));
+    for (final s in WpPlan.forWorld(cfg.world)) {
+      final names = set?.props[s.g] ?? const <String>[];
+      final keys = [for (final f in names) if (wp.containsKey('${s.g}/$f')) '${s.g}/$f'];
+      if (keys.isEmpty) continue;
+      String pick() => keys[(r() * keys.length).floor() % keys.length];
+      if (s.mode == 0) {
+        for (final g in cfg.grounds) {
+          if (g.w < 120) continue;
+          final n = (g.w / s.every).floor();
+          for (int i = 0; i < n; i++) {
+            add(pick(), g.x + 40 + r() * (g.w - 80), s.h0 + r() * (s.h1 - s.h0), s.layer, s.glow);
+          }
+        }
+      } else {
+        for (double x = 100 + r() * s.every; x < cfg.length; x += s.every * (.7 + r() * .6)) {
+          add(pick(), x, s.h0 + r() * (s.h1 - s.h0), s.layer, null, top: s.mode == 1 ? 0.0 : s.t0 + r() * (s.t1 - s.t0));
+        }
+      }
+    }
+    if (const [4, 7, 8, 10].contains(cfg.world)) {
+      for (final g in cfg.grounds) {
+        if (g.w > 220) props.add(Prop('torch', g.x + 40 + r() * (g.w - 80), 72, 1, false, const C3(255, 170, 70)));
+      }
+    }
+    if (!cfg.classic) _natureProps();
   }
 
   // ---------------- الديكور
