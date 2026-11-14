@@ -4,6 +4,7 @@ import 'levelgen.dart';
 import 'world1.dart';
 import 'world2.dart';
 import 'world3.dart';
+import 'world4.dart';
 
 const double kW = 360;
 const double kH = 500;
@@ -98,6 +99,7 @@ class WorldTheme {
     if (w == 1) return cave;
     if (w == 2) return forest;
     if (w == 3) return mush;
+    if (w == 4) return castle;
     return _cache.putIfAbsent(w, () => _make(w));
   }
 
@@ -225,6 +227,43 @@ class WorldTheme {
     dark: .5,
     hazA: Color(0xFF1C1030),
     hazB: Color(0xFFB4FF50),
+    wood: false,
+  );
+
+  /// العالم الرابع «قلعة الهياكل»: حجر رمادي مزرق، مشاعل برتقالية، ضباب بارد
+  static const WorldTheme castle = WorldTheme(
+    key: 'w4',
+    sky: [Color(0xFF040508), Color(0xFF0C0E16), Color(0xFF181B28), Color(0xFF262A3A)],
+    blobA: C3(90, 110, 170),
+    blobB: C3(255, 150, 70),
+    moonGlow: C3(170, 190, 230),
+    moonA: Color(0xFFE8ECF6),
+    moonB: Color(0xFFB4BCD2),
+    mt1: [Color(0xFF14172A), Color(0xFF0A0C16), Color(0x4A8C9CD2)],
+    mt2: [Color(0xFF0E1020), Color(0xFF070810), Color(0x3A6E7EB4)],
+    towers1: 5,
+    fog: C3(150, 165, 200),
+    orb: C3(255, 170, 90),
+    rune: C3(170, 200, 255),
+    wall: WallStyle.bricks,
+    wallHue: 225,
+    wallSat: .1,
+    wallBase: Color(0xFF06070C),
+    archStroke: Color(0xFF3A3F56),
+    tintTop: Color(0x30506AA0),
+    tintBottom: Color(0x88020208),
+    soil: false,
+    gtHue: 225,
+    gtSat: .1,
+    edge: Color(0xFF59607C),
+    edgeGlow: Color(0x30FFB070),
+    grass1: Color(0xFF3A4054),
+    grass2: Color(0xFF262A3A),
+    grassTip: Color(0xAAD8DCEC),
+    spikes: [Color(0xFF080A12), Color(0xFF0C0E18), Color(0xFF05060A)],
+    dark: .55,
+    hazA: Color(0xFF1C2030),
+    hazB: Color(0xFFD8DCEC),
     wood: false,
   );
 
@@ -471,7 +510,7 @@ class Worlds {
         [Color(0xFF020806), Color(0xFF0C3523), Color(0xFF16553A)], Color(0xFF2A1F14)),
     WorldInfo(3, 'كهف الفطر السام', 'فطر عملاق وبحيرات سامة وجذور حية وضباب قاتل', 'ملك الفطر السام', true,
         [Color(0xFF0A0614), Color(0xFF2A1048), Color(0xFF5A2A7A)], Color(0xFF2A1840)),
-    WorldInfo(4, 'قلعة الهياكل العظمية', 'أعمدة وتماثيل وأفخاخ وسهام', 'ملك الهياكل العظمية', true,
+    WorldInfo(4, 'قلعة الهياكل', 'قلعة مظلمة: سيوف وفؤوس وجماجم تطلق النار وأبواب بمفاتيح', 'ملك الهياكل', true,
         [Color(0xFF080808), Color(0xFF26262E), Color(0xFF3E3E4A)], Color(0xFF2A2A34)),
     WorldInfo(5, 'مملكة الحمم', 'براكين وحمم متحركة وصخور متساقطة', 'تنين الحمم', true,
         [Color(0xFF140404), Color(0xFF5A1408), Color(0xFFB4400E)], Color(0xFF3A1208)),
@@ -507,10 +546,16 @@ class LevelFactory {
     'متاهة الفطر', 'الهاوية الفطرية', 'قلب الكهف', 'مملكة الجراثيم', 'عرش الفطر السام'
   ];
 
+  static const _names4 = [
+    'بوابة القلعة', 'ممر الجماجم', 'قاعة السيوف', 'الجسر المعلق', 'سجن الهياكل',
+    'برج الموت', 'قاعة الفؤوس', 'سرداب الملك', 'عرش العظام', 'ملك الهياكل'
+  ];
+
   static String nameOf(int w, int i) {
     if (w == 1) return _names1[i - 1];
     if (w == 2) return _names2[i - 1];
     if (w == 3) return _names3[i - 1];
+    if (w == 4) return _names4[i - 1];
     return '${Worlds.of(w).name} $i';
   }
 
@@ -521,6 +566,8 @@ class LevelFactory {
     if (world == 2) return World2.build(idx);
     // العالم الثالث «كهف الفطر السام»: المراحل العشر مصمَّمة يدوياً
     if (world == 3) return World3.build(idx);
+    // العالم الرابع «قلعة الهياكل»: المراحل العشر مصمَّمة يدوياً
+    if (world == 4) return World4.build(idx);
     final cfg = LevelGen.build(world, idx);
     return _solidFloor(cfg);
   }

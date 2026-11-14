@@ -170,7 +170,7 @@ class Boss extends Box {
   int ph = 1; // مرحلة القتال (الحارس الحجري: 1..3)
   Boss(double x, double y, this.hp, this.name, this.kind)
       : maxHp = hp,
-        super(x, y, 96, 56);
+        super(x, kind == 13 ? kFloorY - 84.0 : y, kind == 13 ? 120.0 : 96.0, kind == 13 ? 84.0 : 56.0);
 }
 
 class GameEngine extends ChangeNotifier {
@@ -194,6 +194,8 @@ class GameEngine extends ChangeNotifier {
   List<Haz> haz = [];
   List<Brk> brks = [];
   List<TimedHaz> timedH = [];
+  /// مؤقتات فخاخ الضغط (العالم الرابع): معرّف المجموعة ← الإطارات المتبقية
+  final Map<int, int> trapT = {};
   List<Faller> fallers = [];
   List<Roller> rollers = [];
   List<SpringPad> springsL = [];
@@ -270,6 +272,7 @@ class GameEngine extends ChangeNotifier {
       haz = cfg.hazards.map((a) => Haz(a.x, a.y, a.w, a.h, a.kind)).toList();
       brks = cfg.breaks.map((a) => Brk(a)).toList();
       timedH = cfg.timed.map((a) => TimedHaz(a)).toList();
+      trapT.clear();
       fallers = cfg.falls.map((a) => Faller(a)).toList();
       rollers = cfg.rolls.map((a) => Roller(a)).toList();
       springsL = cfg.springs.map((a) => SpringPad(a)).toList();
@@ -375,6 +378,7 @@ class GameEngine extends ChangeNotifier {
       r.active = false;
       r.tm = r.s.phase.toInt();
     }
+    trapT.clear();
     final bs = cfg.boss;
     if (bs != null && boss != null && boss!.st != 'dead') {
       boss = Boss(bs.x, kFloorY - 56, bs.hp, bs.name, bs.kind);
@@ -547,6 +551,10 @@ class GameEngine extends ChangeNotifier {
       if (b.hit > 0) b.hit--;
     }
     // فخاخ زمنية
+    for (final k in trapT.keys.toList()) {
+      final v = trapT[k]!;
+      if (v > 0) trapT[k] = v - 1;
+    }
     for (final h in timedH) {
       final s = h.s;
       if (s.minPhase > 0 && (boss == null || boss!.ph < s.minPhase)) {
@@ -554,10 +562,27 @@ class GameEngine extends ChangeNotifier {
         h.warn = false;
         continue;
       }
-      if (s.kind == 6) {
+      if (s.kind == 12) {
+        // لوح ضغط أرضي: عند الوقوف عليه يُفعَّل الفخ المرتبط به (المعرّف = period)
+        final gid = s.period.toInt();
+        if (p.g && p.hits(Box(s.x, s.y, s.w, s.h)) && (trapT[gid] ?? 0) <= 0) {
+          trapT[gid] = (s.on + s.phase).toInt();
+          _spark(s.x + s.w / 2, s.y, 6, const Color(0xFFFFE27A), add: true);
+        }
+        h.on = (trapT[gid] ?? 0) > 0;
+        h.warn = false;
+        continue;
+      }
+      if (s.kind == 13) {
+        // فخ مرتبط بلوح ضغط: تحذير ثم أشواك/سهام نشطة طوال مدة on
+        final tt = trapT[s.period.toInt()] ?? 0;
+        h.on = tt > 0 && tt <= s.on;
+        h.warn = tt > s.on;
+      } else if (s.kind == 6 || s.kind == 11) {
         h.on = true;
         h.warn = false;
-        h.x = s.x + (math.sin(t * 0.045 + s.phase) + 1) / 2 * (s.w - 16);
+        final w0 = s.kind == 11 ? t * 2 * math.pi / s.period : t * 0.045;
+        h.x = s.x + (math.sin(w0 + s.phase) + 1) / 2 * (s.w - 16);
         h.w = 16;
       } else {
         final m = (t + s.phase) % s.period;
@@ -1069,8 +1094,8 @@ class GameEngine extends ChangeNotifier {
       }
       return;
     }
-    if (b.kind == 1 || b.kind == 12) _guardianPhase(b);
-    if (b.kind != 1 && b.kind != 12 && b.hp <= b.maxHp * 0.4 && !b.enraged) {
+    if (b.kind == 1 || b.kind == 12 || b.kind == 13) _guardianPhase(b);
+    if (b.kind != 1 && b.kind != 12 && b.kind != 13 && b.hp <= b.maxHp * 0.4 && !b.enraged) {
       b.enraged = true;
       shake = 14;
       _spark(b.x + b.w / 2, b.y + 20, 40, const Color(0xFFFF4A3A), add: true);
@@ -1099,7 +1124,7 @@ class GameEngine extends ChangeNotifier {
         b.x = math.max(4.0, math.min(cfg.length - 14 - b.w, b.x));
         b.cd--;
         if (b.cd <= 0) {
-          final pl = b.kind == 1 ? _guardPool(b.ph) : (b.kind == 12 ? _mushPool(b.ph) : _pool(b.kind));
+          final pl = b.kind == 1 ? _guardPool(b.ph) : (b.kind == 12 ? _mushPool(b.ph) : (b.kind == 13 ? _skelPool(b.ph) : _pool(b.kind)));
           b.st = pl[rng.nextInt(pl.length)];
           b.t = 0;
         }
@@ -1263,6 +1288,48 @@ class GameEngine extends ChangeNotifier {
           b.stun = 70;
         }
         break;
+      case 'sword':
+        // السيف الضخم: يرفعه (تحذير) ثم يضرب قوساً أمامه مع موجة أرضية، ثم يعلق السيف فتنكشف الجمجمة
+        if (b.t == 1) b.dir = px < b.x + b.w / 2 ? -1 : 1;
+        final wind = b.ph >= 3 ? 26 : 34;
+        if (b.t == wind) {
+          shake = 10;
+          HapticFeedback.heavyImpact();
+          final reach = Box(b.dir > 0 ? b.x + b.w - 10 : b.x - 150, kFloorY - 70, 160, 70);
+          if (p.hits(reach)) {
+            if (_hurt(b.x + b.w / 2)) return;
+          }
+          final ws = b.ph >= 3 ? 4.0 : 3.2;
+          projs.add(Proj(b.x + b.w / 2 + b.dir * 80, kFloorY - 14, b.dir * ws, 0, 150, 1));
+          _spark(b.x + b.w / 2 + b.dir * 90, kFloorY - 10, 16, const Color(0xFFFFE27A), add: true);
+        }
+        if (b.t > wind + 18) {
+          b.st = 'stun';
+          b.t = 0;
+          b.stun = b.ph >= 3 ? 70 : 84;
+        }
+        break;
+      case 'summon':
+        // يستدعي هياكل حراسة تطارد اللاعب (بحد أقصى 3 أحياء) ثم يركع فتنكشف جمجمته
+        if (b.t == 30) {
+          final alive = en.where((e) => e.hp > 0).length;
+          final n = math.min(b.ph >= 2 ? 2 : 1, 3 - alive);
+          for (int i = 0; i < n; i++) {
+            final sx = i == 0 ? b.x - 90 : b.x + b.w + 70;
+            final nx = cl(sx, 30.0, cfg.length - 50.0);
+            final e = Enemy(nx, kFloorY - 12, math.max(10.0, nx - 220), math.min(cfg.length - 20, nx + 220), 5, rng.nextDouble() * 6);
+            e.hp = 1;
+            en.add(e);
+            _spark(nx + 9, kFloorY - 10, 14, const Color(0xFFBFD8FF), add: true);
+          }
+          shake = 5;
+        }
+        if (b.t > 62) {
+          b.st = 'stun';
+          b.t = 0;
+          b.stun = 56;
+        }
+        break;
       case 'stun':
         b.stun--;
         if (b.stun <= 0) {
@@ -1295,6 +1362,12 @@ class GameEngine extends ChangeNotifier {
     if (ph <= 1) return const ['charge', 'slam', 'charge', 'slam'];
     if (ph == 2) return const ['charge', 'slam', 'quake', 'rain'];
     return const ['charge', 'slam', 'quake', 'rain', 'web', 'quake'];
+  }
+
+  List<String> _skelPool(int ph) {
+    if (ph <= 1) return const ['sword', 'spore', 'charge', 'sword', 'summon'];
+    if (ph == 2) return const ['sword', 'summon', 'rain', 'spore', 'charge', 'sword'];
+    return const ['sword', 'quake', 'summon', 'rain', 'ring', 'spore', 'sword'];
   }
 
   List<String> _mushPool(int ph) {
