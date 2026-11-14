@@ -1,0 +1,316 @@
+[33mcommit 328e1f1c97f7c03027eb10f8cbd704af44350a28[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m
+Author: ksomealmlk-create <you@example.com>
+Date:   Sat Nov 14 21:26:49 2026 +0300
+
+    remove 3D
+
+ .github/workflows/build-3d.yml    |  34 [31m---[m
+ Amber3D/.gitignore                |   3 [31m-[m
+ Amber3D/README.md                 |  20 [31m--[m
+ Amber3D/export_presets.cfg        |  50 [31m----[m
+ Amber3D/fonts/DejaVu-LICENSE.txt  |  78 [31m------[m
+ Amber3D/fonts/DejaVuSans-Bold.ttf | Bin [31m708920[m -> [32m0[m bytes
+ Amber3D/icon.png                  | Bin [31m103717[m -> [32m0[m bytes
+ Amber3D/project.godot             |  31 [31m---[m
+ Amber3D/scenes/main.tscn          |   6 [31m-[m
+ Amber3D/scripts/fx.gd             | 126 [31m---------[m
+ Amber3D/scripts/hero.gd           | 263 [31m-------------------[m
+ Amber3D/scripts/hud.gd            | 176 [31m-------------[m
+ Amber3D/scripts/level_data.gd     |  48 [31m----[m
+ Amber3D/scripts/levels/data_w1.gd | 618 [31m---------------------------------------------[m
+ Amber3D/scripts/levels/data_w2.gd | 587 [31m------------------------------------------[m
+ Amber3D/scripts/levels/data_w3.gd | 771 [31m--------------------------------------------------------[m
+ Amber3D/scripts/main.gd           | 154 [31m-----------[m
+ Amber3D/scripts/mats.gd           | 113 [31m---------[m
+ Amber3D/scripts/session.gd        |  36 [31m---[m
+ Amber3D/scripts/sim.gd            | 799 [31m----------------------------------------------------------[m
+ Amber3D/scripts/util.gd           |  65 [31m-----[m
+ Amber3D/scripts/view.gd           | 581 [31m------------------------------------------[m
+ Amber3D/scripts/world.gd          | 392 [31m----------------------------[m
+ Amber3D/tools/debug.keystore      | Bin [31m2666[m -> [32m0[m bytes
+ Amber3D/tools/export_all.py       | 130 [31m----------[m
+ Amber3D/tools/export_level.py     |  86 [31m-------[m
+ 26 files changed, 5167 deletions(-)
+
+[33mcommit 35d13f6ec4cd05a055df67d5d0142c4258779b27[m
+Author: ksomealmlk-create <you@example.com>
+Date:   Sat Nov 14 20:42:42 2026 +0300
+
+    adventurer player sprites
+
+ lib/game/painter.dart    |  2 [32m++[m
+ lib/game/player_art.dart | 72 [32m++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++[m
+ 2 files changed, 74 insertions(+)
+
+[33mcommit 8e913aca2daac62c0258455421dee12b3a967733[m
+Author: ksomealmlk-create <you@example.com>
+Date:   Sat Nov 14 20:36:54 2026 +0300
+
+    bat, spider enemies, adventurer player
+
+ assets/player/attack1_down_00.png                               | Bin [31m0[m -> [32m1077[m bytes
+ assets/player/attack1_down_01.png                               | Bin [31m0[m -> [32m1076[m bytes
+ assets/player/attack1_down_02.png                               | Bin [31m0[m -> [32m1053[m bytes
+ assets/player/attack1_down_03.png                               | Bin [31m0[m -> [32m1039[m bytes
+ assets/player/attack1_down_04.png                               | Bin [31m0[m -> [32m933[m bytes
+ assets/player/attack1_down_05.png                               | Bin [31m0[m -> [32m909[m bytes
+ assets/player/attack1_down_06.png                               | Bin [31m0[m -> [32m916[m bytes
+ assets/player/attack1_down_07.png                               | Bin [31m0[m -> [32m943[m bytes
+ assets/player/attack1_down_sheet.png                            | Bin [31m0[m -> [32m3997[m bytes
+ assets/player/attack1_left_00.png                               | Bin [31m0[m -> [32m935[m bytes
+ assets/player/attack1_left_01.png                               | Bin [31m0[m -> [32m992[m bytes
+ assets/player/attack1_left_02.png                               | Bin [31m0[m -> [32m884[m bytes
+ assets/player/attack1_left_03.png                               | Bin [31m0[m -> [32m980[m bytes
+ assets/player/attack1_left_04.png                               | Bin [31m0[m -> [32m990[m bytes
+ assets/player/attack1_left_05.png                               | Bin [31m0[m -> [32m972[m bytes
+ assets/player/attack1_left_06.png                               | Bin [31m0[m -> [32m932[m bytes
+ assets/player/attack1_left_07.png                               | Bin [31m0[m -> [32m961[m bytes
+ assets/player/attack1_left_sheet.png                            | Bin [31m0[m -> [32m3565[m bytes
+ assets/player/attack1_right_00.png                              | Bin [31m0[m -> [32m990[m bytes
+ assets/player/attack1_right_01.png                              | Bin [31m0[m -> [32m901[m bytes
+ assets/player/attack1_right_02.png                              | Bin [31m0[m -> [32m984[m bytes
+ assets/player/attack1_right_03.png                              | Bin [31m0[m -> [32m919[m bytes
+ assets/player/attack1_right_04.png                              | Bin [31m0[m -> [32m878[m bytes
+ assets/player/attack1_right_05.png                              | Bin [31m0[m -> [32m873[m bytes
+ assets/player/attack1_right_06.png                              | Bin [31m0[m -> [32m866[m bytes
+ assets/player/attack1_right_07.png                              | Bin [31m0[m -> [32m866[m bytes
+ assets/player/attack1_right_sheet.png                           | Bin [31m0[m -> [32m3299[m bytes
+ assets/player/attack1_up_00.png                                 | Bin [31m0[m -> [32m1037[m bytes
+ assets/player/attack1_up_01.png                                 | Bin [31m0[m -> [32m1069[m bytes
+ assets/player/attack1_up_02.png                                 | Bin [31m0[m -> [32m1020[m bytes
+ assets/player/attack1_up_03.png                                 | Bin [31m0[m -> [32m932[m bytes
+ assets/player/attack1_up_04.png                                 | Bin [31m0[m -> [32m844[m bytes
+ assets/player/attack1_up_05.png                                 | Bin [31m0[m -> [32m836[m bytes
+ assets/player/attack1_up_06.png                                 | Bin [31m0[m -> [32m838[m bytes
+ assets/player/attack1_up_07.png                                 | Bin [31m0[m -> [32m838[m bytes
+ assets/player/attack1_up_sheet.png                              | Bin [31m0[m -> [32m3660[m bytes
+ assets/player/attack2_down_00.png                               | Bin [31m0[m -> [32m889[m bytes
+ assets/player/attack2_down_01.png                               | Bin [31m0[m -> [32m1211[m bytes
+ assets/player/attack2_down_02.png                               | Bin [31m0[m -> [32m1149[m bytes
+ assets/player/attack2_down_03.png                               | Bin [31m0[m -> [32m1117[m bytes
+ assets/player/attack2_down_04.png                               | Bin [31m0[m -> [32m1045[m bytes
+ assets/player/attack2_down_05.png                               | Bin [31m0[m -> [32m1055[m bytes
+ assets/player/attack2_down_06.png                               | Bin [31m0[m -> [32m1025[m bytes
+ assets/player/attack2_down_07.png                               | Bin [31m0[m -> [32m908[m bytes
+ assets/player/attack2_down_sheet.png                            | Bin [31m0[m -> [32m4358[m bytes
+ assets/player/attack2_left_00.png                               | Bin [31m0[m -> [32m974[m bytes
+ assets/player/attack2_left_01.png                               | Bin [31m0[m -> [32m1031[m bytes
+ assets/player/attack2_left_02.png                               | Bin [31m0[m -> [32m1051[m bytes
+ assets/player/attack2_left_03.png                               | Bin [31m0[m -> [32m1030[m bytes
+ assets/player/attack2_left_04.png                               | Bin [31m0[m -> [32m960[m bytes
+ assets/player/attack2_left_05.png                               | Bin [31m0[m -> [32m956[m bytes
+ assets/player/attack2_left_06.png                               | Bin [31m0[m -> [32m929[m bytes
+ assets/player/attack2_left_07.png                               | Bin [31m0[m -> [32m835[m bytes
+ assets/player/attack2_left_sheet.png                            | Bin [31m0[m -> [32m3837[m bytes
+ assets/player/attack2_right_00.png                              | Bin [31m0[m -> [32m923[m bytes
+ assets/player/attack2_right_01.png                              | Bin [31m0[m -> [32m924[m bytes
+ assets/player/attack2_right_02.png                              | Bin [31m0[m -> [32m869[m bytes
+ assets/player/attack2_right_03.png                              | Bin [31m0[m -> [32m1036[m bytes
+ assets/player/attack2_right_04.png                              | Bin [31m0[m -> [32m987[m bytes
+ assets/player/attack2_right_05.png                              | Bin [31m0[m -> [32m984[m bytes
+ assets/player/attack2_right_06.png                              | Bin [31m0[m -> [32m989[m bytes
+ assets/player/attack2_right_07.png                              | Bin [31m0[m -> [32m890[m bytes
+ assets/player/attack2_right_sheet.png                           | Bin [31m0[m -> [32m3666[m bytes
+ assets/player/attack2_up_00.png                                 | Bin [31m0[m -> [32m891[m bytes
+ assets/player/attack2_up_01.png                                 | Bin [31m0[m -> [32m1055[m bytes
+ assets/player/attack2_up_02.png                                 | Bin [31m0[m -> [32m1009[m bytes
+ assets/player/attack2_up_03.png                                 | Bin [31m0[m -> [32m1001[m bytes
+ assets/player/attack2_up_04.png                                 | Bin [31m0[m -> [32m914[m bytes
+ assets/player/attack2_up_05.png                                 | Bin [31m0[m -> [32m922[m bytes
+ assets/player/attack2_up_06.png                                 | Bin [31m0[m -> [32m900[m bytes
+ assets/player/attack2_up_07.png                                 | Bin [31m0[m -> [32m840[m bytes
+ assets/player/attack2_up_sheet.png                              | Bin [31m0[m -> [32m3531[m bytes
+ assets/player/idle_down_00.png                                  | Bin [31m0[m -> [32m1078[m bytes
+ assets/player/idle_down_01.png                                  | Bin [31m0[m -> [32m1086[m bytes
+ assets/player/idle_down_02.png                                  | Bin [31m0[m -> [32m1090[m bytes
+ assets/player/idle_down_03.png                                  | Bin [31m0[m -> [32m1084[m bytes
+ assets/player/idle_down_04.png                                  | Bin [31m0[m -> [32m1064[m bytes
+ assets/player/idle_down_05.png                                  | Bin [31m0[m -> [32m1066[m bytes
+ assets/player/idle_down_06.png                                  | Bin [31m0[m -> [32m1058[m bytes
+ assets/player/idle_down_07.png                                  | Bin [31m0[m -> [32m1079[m bytes
+ assets/player/idle_down_sheet.png                               | Bin [31m0[m -> [32m3049[m bytes
+ assets/player/idle_left_00.png                                  | Bin [31m0[m -> [32m932[m bytes
+ assets/player/idle_left_01.png                                  | Bin [31m0[m -> [32m966[m bytes
+ assets/player/idle_left_02.png                                  | Bin [31m0[m -> [32m945[m bytes
+ assets/player/idle_left_03.png                                  | Bin [31m0[m -> [32m955[m bytes
+ assets/player/idle_left_04.png                                  | Bin [31m0[m -> [32m916[m bytes
+ assets/player/idle_left_05.png                                  | Bin [31m0[m -> [32m916[m bytes
+ assets/player/idle_left_06.png                                  | Bin [31m0[m -> [32m918[m bytes
+ assets/player/idle_left_07.png                                  | Bin [31m0[m -> [32m924[m bytes
+ assets/player/idle_left_sheet.png                               | Bin [31m0[m -> [32m2607[m bytes
+ assets/player/idle_right_00.png                                 | Bin [31m0[m -> [32m981[m bytes
+ assets/player/idle_right_01.png                                 | Bin [31m0[m -> [32m983[m bytes
+ assets/player/idle_right_02.png                                 | Bin [31m0[m -> [32m963[m bytes
+ assets/player/idle_right_03.png                                 | Bin [31m0[m -> [32m932[m bytes
+ assets/player/idle_right_04.png                                 | Bin [31m0[m -> [32m957[m bytes
+ assets/player/idle_right_05.png                                 | Bin [31m0[m -> [32m957[m bytes
+ assets/player/idle_right_06.png                                 | Bin [31m0[m -> [32m977[m bytes
+ assets/player/idle_right_07.png                                 | Bin [31m0[m -> [32m959[m bytes
+ assets/player/idle_right_sheet.png                              | Bin [31m0[m -> [32m2555[m bytes
+ assets/player/idle_up_00.png                                    | Bin [31m0[m -> [32m1041[m bytes
+ assets/player/idle_up_01.png                                    | Bin [31m0[m -> [32m1076[m bytes
+ assets/player/idle_up_02.png                                    | Bin [31m0[m -> [32m1051[m bytes
+ assets/player/idle_up_03.png                                    | Bin [31m0[m -> [32m1069[m bytes
+ assets/player/idle_up_04.png                                    | Bin [31m0[m -> [32m1059[m bytes
+ assets/player/idle_up_05.png                                    | Bin [31m0[m -> [32m1061[m bytes
+ assets/player/idle_up_06.png                                    | Bin [31m0[m -> [32m1074[m bytes
+ assets/player/idle_up_07.png                                    | Bin [31m0[m -> [32m1053[m bytes
+ assets/player/idle_up_sheet.png                                 | Bin [31m0[m -> [32m3212[m bytes
+ assets/player/player.dart                                       |  31 [32m++++++++++++++++++++++++++++[m
+ assets/player/preview_right.png                                 | Bin [31m0[m -> [32m12533[m bytes
+ assets/player/run_down_00.png                                   | Bin [31m0[m -> [32m881[m bytes
+ assets/player/run_down_01.png                                   | Bin [31m0[m -> [32m923[m bytes
+ assets/player/run_down_02.png                                   | Bin [31m0[m -> [32m906[m bytes
+ assets/player/run_down_03.png                                   | Bin [31m0[m -> [32m940[m bytes
+ assets/player/run_down_04.png                                   | Bin [31m0[m -> [32m926[m bytes
+ assets/player/run_down_05.png                                   | Bin [31m0[m -> [32m940[m bytes
+ assets/player/run_down_06.png                                   | Bin [31m0[m -> [32m870[m bytes
+ assets/player/run_down_07.png                                   | Bin [31m0[m -> [32m886[m bytes
+ assets/player/run_down_sheet.png                                | Bin [31m0[m -> [32m4033[m bytes
+ assets/player/run_left_00.png                                   | Bin [31m0[m -> [32m814[m bytes
+ assets/player/run_left_01.png                                   | Bin [31m0[m -> [32m888[m bytes
+ assets/player/run_left_02.png                                   | Bin [31m0[m -> [32m954[m bytes
+ assets/player/run_left_03.png                                   | Bin [31m0[m -> [32m940[m bytes
+ assets/player/run_left_04.png                                   | Bin [31m0[m -> [32m850[m bytes
+ assets/player/run_left_05.png                                   | Bin [31m0[m -> [32m857[m bytes
+ assets/player/run_left_06.png                                   | Bin [31m0[m -> [32m931[m bytes
+ assets/player/run_left_07.png                                   | Bin [31m0[m -> [32m935[m bytes
+ assets/player/run_left_sheet.png                                | Bin [31m0[m -> [32m3910[m bytes
+ assets/player/run_right_00.png                                  | Bin [31m0[m -> [32m815[m bytes
+ assets/player/run_right_01.png                                  | Bin [31m0[m -> [32m870[m bytes
+ assets/player/run_right_02.png                                  | Bin [31m0[m -> [32m910[m bytes
+ assets/player/run_right_03.png                                  | Bin [31m0[m -> [32m925[m bytes
+ assets/player/run_right_04.png                                  | Bin [31m0[m -> [32m856[m bytes
+ assets/player/run_right_05.png                                  | Bin [31m0[m -> [32m838[m bytes
+ assets/player/run_right_06.png                                  | Bin [31m0[m -> [32m936[m bytes
+ assets/player/run_right_07.png                                  | Bin [31m0[m -> [32m934[m bytes
+ assets/player/run_right_sheet.png                               | Bin [31m0[m -> [32m3869[m bytes
+ assets/player/run_up_00.png                                     | Bin [31m0[m -> [32m828[m bytes
+ assets/player/run_up_01.png                                     | Bin [31m0[m -> [32m838[m bytes
+ assets/player/run_up_02.png                                     | Bin [31m0[m -> [32m892[m bytes
+ assets/player/run_up_03.png                                     | Bin [31m0[m -> [32m931[m bytes
+ assets/player/run_up_04.png                                     | Bin [31m0[m -> [32m830[m bytes
+ assets/player/run_up_05.png                                     | Bin [31m0[m -> [32m848[m bytes
+ assets/player/run_up_06.png                                     | Bin [31m0[m -> [32m819[m bytes
+ assets/player/run_up_07.png                                     | Bin [31m0[m -> [32m882[m bytes
+ assets/player/run_up_sheet.png                                  | Bin [31m0[m -> [32m3313[m bytes
+ assets/world_props/world01_blue_cave/enemies/lizard_idle_00.png | Bin [31m378[m -> [32m341[m bytes
+ assets/world_props/world01_blue_cave/enemies/lizard_idle_01.png | Bin [31m373[m -> [32m332[m bytes
+ assets/world_props/world01_blue_cave/enemies/lizard_idle_02.png | Bin [31m389[m -> [32m345[m bytes
+ assets/world_props/world01_blue_cave/enemies/lizard_idle_03.png | Bin [31m364[m -> [32m336[m bytes
+ assets/world_props/world01_blue_cave/enemies/lizard_walk_00.png | Bin [31m373[m -> [32m334[m bytes
+ assets/world_props/world01_blue_cave/enemies/lizard_walk_01.png | Bin [31m382[m -> [32m322[m bytes
+ assets/world_props/world01_blue_cave/enemies/lizard_walk_02.png | Bin [31m393[m -> [32m313[m bytes
+ assets/world_props/world01_blue_cave/enemies/lizard_walk_03.png | Bin [31m388[m -> [32m327[m bytes
+ assets/world_props/world01_blue_cave/enemies/lizard_walk_04.png | Bin [31m382[m -> [32m307[m bytes
+ assets/world_props/world01_blue_cave/enemies/lizard_walk_05.png | Bin [31m399[m -> [32m329[m bytes
+ assets/world_props/world02_forest/enemies/bunny_idle_00.png     | Bin [31m744[m -> [32m437[m bytes
+ assets/world_props/world02_forest/enemies/bunny_idle_01.png     | Bin [31m739[m -> [32m426[m bytes
+ assets/world_props/world02_forest/enemies/bunny_idle_02.png     | Bin [31m743[m -> [32m443[m bytes
+ assets/world_props/world02_forest/enemies/bunny_idle_03.png     | Bin [31m739[m -> [32m458[m bytes
+ assets/world_props/world02_forest/enemies/frog_walk_00.png      | Bin [31m733[m -> [32m538[m bytes
+ assets/world_props/world02_forest/enemies/frog_walk_01.png      | Bin [31m704[m -> [32m587[m bytes
+ assets/world_props/world02_forest/enemies/frog_walk_02.png      | Bin [31m647[m -> [32m559[m bytes
+ assets/world_props/world02_forest/enemies/frog_walk_03.png      | Bin [31m674[m -> [32m544[m bytes
+ assets/world_props/world02_forest/enemies/frog_walk_04.png      | Bin [31m714[m -> [32m535[m bytes
+ assets/world_props/world02_forest/enemies/frog_walk_05.png      | Bin [31m721[m -> [32m561[m bytes
+ assets/world_props/world02_forest/enemies/frog_walk_06.png      | Bin [31m753[m -> [32m562[m bytes
+ assets/world_props/world02_forest/enemies/frog_walk_07.png      | Bin [31m668[m -> [32m566[m bytes
+ assets/world_props/world02_forest/enemies/frog_walk_08.png      | Bin [31m705[m -> [32m573[m bytes
+ assets/world_props/world02_forest/enemies/frog_walk_09.png      | Bin [31m741[m -> [32m575[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_00.png    | Bin [31m37985[m -> [32m25477[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_01.png    | Bin [31m37661[m -> [32m25565[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_02.png    | Bin [31m37302[m -> [32m25411[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_03.png    | Bin [31m36798[m -> [32m25472[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_04.png    | Bin [31m36651[m -> [32m25580[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_05.png    | Bin [31m36174[m -> [32m25396[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_06.png    | Bin [31m35496[m -> [32m25513[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_07.png    | Bin [31m35592[m -> [32m25387[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_08.png    | Bin [31m35236[m -> [32m25552[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_09.png    | Bin [31m34900[m -> [32m25470[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_10.png    | Bin [31m34709[m -> [32m25567[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_11.png    | Bin [31m33896[m -> [32m25467[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_12.png    | Bin [31m33780[m -> [32m25355[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_13.png    | Bin [31m33196[m -> [32m25337[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_14.png    | Bin [31m32973[m -> [32m25451[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_15.png    | Bin [31m32924[m -> [32m25501[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_16.png    | Bin [31m32809[m -> [32m25503[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_17.png    | Bin [31m32722[m -> [32m25483[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_18.png    | Bin [31m33155[m -> [32m25472[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_19.png    | Bin [31m33390[m -> [32m25396[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_20.png    | Bin [31m33634[m -> [32m25367[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_21.png    | Bin [31m34092[m -> [32m25358[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_22.png    | Bin [31m34312[m -> [32m25564[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_23.png    | Bin [31m34648[m -> [32m25405[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_24.png    | Bin [31m35320[m -> [32m25564[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_25.png    | Bin [31m35808[m -> [32m25393[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_26.png    | Bin [31m36197[m -> [32m25635[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_27.png    | Bin [31m36767[m -> [32m25666[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_28.png    | Bin [31m37067[m -> [32m25640[m bytes
+ assets/world_props/world02_forest/enemies/slime_green_29.png    | Bin [31m37476[m -> [32m25633[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_jump_00.png   | Bin [31m615[m -> [32m513[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_jump_01.png   | Bin [31m514[m -> [32m516[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_jump_02.png   | Bin [31m794[m -> [32m516[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_jump_03.png   | Bin [31m443[m -> [32m487[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_jump_04.png   | Bin [31m540[m -> [32m471[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_jump_05.png   | Bin [31m604[m -> [32m487[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_jump_06.png   | Bin [31m550[m -> [32m516[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_jump_07.png   | Bin [31m526[m -> [32m516[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_jump_08.png   | Bin [31m615[m -> [32m524[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_walk_00.png   | Bin [31m569[m -> [32m529[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_walk_01.png   | Bin [31m537[m -> [32m543[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_walk_02.png   | Bin [31m482[m -> [32m516[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_walk_03.png   | Bin [31m497[m -> [32m512[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_walk_04.png   | Bin [31m486[m -> [32m494[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_walk_05.png   | Bin [31m524[m -> [32m516[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_walk_06.png   | Bin [31m502[m -> [32m516[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_walk_07.png   | Bin [31m482[m -> [32m519[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_walk_08.png   | Bin [31m490[m -> [32m509[m bytes
+ .../world_props/world03_mushroom/enemies/mushroom_walk_09.png   | Bin [31m491[m -> [32m514[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_00.png     | Bin [31m41185[m -> [32m29217[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_01.png     | Bin [31m40558[m -> [32m29147[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_02.png     | Bin [31m40131[m -> [32m29166[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_03.png     | Bin [31m39723[m -> [32m29043[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_04.png     | Bin [31m39339[m -> [32m29191[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_05.png     | Bin [31m38952[m -> [32m29236[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_06.png     | Bin [31m38862[m -> [32m29126[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_07.png     | Bin [31m38446[m -> [32m29062[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_08.png     | Bin [31m38303[m -> [32m29083[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_09.png     | Bin [31m38382[m -> [32m28989[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_10.png     | Bin [31m37662[m -> [32m29071[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_11.png     | Bin [31m37537[m -> [32m29198[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_12.png     | Bin [31m37451[m -> [32m29173[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_13.png     | Bin [31m37430[m -> [32m29064[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_14.png     | Bin [31m37292[m -> [32m29060[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_15.png     | Bin [31m37128[m -> [32m29022[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_16.png     | Bin [31m37321[m -> [32m29045[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_17.png     | Bin [31m37304[m -> [32m29273[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_18.png     | Bin [31m37402[m -> [32m29149[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_19.png     | Bin [31m37496[m -> [32m29132[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_20.png     | Bin [31m37704[m -> [32m29012[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_21.png     | Bin [31m37970[m -> [32m29165[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_22.png     | Bin [31m38306[m -> [32m29256[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_23.png     | Bin [31m38330[m -> [32m29363[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_24.png     | Bin [31m38594[m -> [32m29203[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_25.png     | Bin [31m38789[m -> [32m29209[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_26.png     | Bin [31m39120[m -> [32m29238[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_27.png     | Bin [31m39777[m -> [32m29180[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_28.png     | Bin [31m39920[m -> [32m29211[m bytes
+ assets/world_props/world05_lava/enemies/slime_orange_29.png     | Bin [31m40380[m -> [32m29176[m bytes
+ assets/world_props/world06_ice/enemies/bird_sheet.png           | Bin [31m1740[m -> [32m3428[m bytes
+ assets/world_props/world08_temple/enemies/snake_attack_00.png   | Bin [31m326[m -> [32m310[m bytes
+ assets/world_props/world08_temple/enemies/snake_idle_00.png     | Bin [31m331[m -> [32m332[m bytes
+ assets/world_props/world08_temple/enemies/snake_idle_01.png     | Bin [31m357[m -> [32m332[m bytes
+ assets/world_props/world08_temple/enemies/snake_idle_02.png     | Bin [31m353[m -> [32m323[m bytes
+ assets/world_props/world08_temple/enemies/snake_idle_03.png     | Bin [31m320[m -> [32m332[m bytes
+ assets/world_props/world09_crystal/enemies/lizard_idle_00.png   | Bin [31m378[m -> [32m341[m bytes
+ assets/world_props/world09_crystal/enemies/lizard_idle_01.png   | Bin [31m373[m -> [32m332[m bytes
+ assets/world_props/world09_crystal/enemies/lizard_idle_02.png   | Bin [31m389[m -> [32m345[m bytes
+ assets/world_props/world09_crystal/enemies/lizard_idle_03.png   | Bin [31m364[m -> [32m336[m bytes
+ assets/world_props/world09_crystal/enemies/snake_walk_00.png    | Bin [31m312[m -> [32m344[m bytes
+ assets/world_props/world09_crystal/enemies/snake_walk_01.png    | Bin [31m307[m -> [32m329[m bytes
+ assets/world_props/world09_crystal/enemies/snake_walk_02.png    | Bin [31m307[m -> [32m352[m bytes
+ assets/world_props/world09_crystal/enemies/snake_walk_03.png    | Bin [31m279[m -> [32m342[m bytes
+ .../world_props/world11_floating_islands/enemies/bird_sheet.png | Bin [31m1569[m -> [32m3428[m bytes
+ lib/game/player_sprites.dart                                    |  31 [32m++++++++++++++++++++++++++++[m
+ 265 files changed, 62 insertions(+)
