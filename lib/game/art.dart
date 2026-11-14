@@ -212,6 +212,32 @@ class Nature {
   }
 }
 
+/// صور خلفيات العوالم (assets/backgrounds/worldN.jpg): تُحمَّل مرة واحدة وتُشارَك بين اللعب والقوائم.
+/// إن غابت صورة عالم ما يبقى الرسم البرمجي القديم لذلك العالم.
+class Backdrops {
+  static final Map<int, ui.Image> cache = {};
+
+  static Future<ui.Image?> get(int world) async {
+    final hit = cache[world];
+    if (hit != null) return hit;
+    try {
+      final bd = await rootBundle.load('assets/backgrounds/world$world.jpg');
+      final codec = await ui.instantiateImageCodec(bd.buffer.asUint8List());
+      final img = (await codec.getNextFrame()).image;
+      cache[world] = img;
+      return img;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> preload() async {
+    for (int w = 1; w <= 11; w++) {
+      await get(w);
+    }
+  }
+}
+
 /// المجسمات المحوّلة لصور (تُحمَّل مرة واحدة)
 class Sprites {
   static Future<Map<String, ui.Image>> load() async {
@@ -247,6 +273,7 @@ class Art {
   final LevelConfig cfg;
   final WorldTheme th;
   late Strip sky, mt1, mt2, wall;
+  ui.Image? bg; // خلفية العالم (مشتركة، لا تُحرَّر هنا)
   late ui.Image fog1, fog2, gt, wood;
   late Paint gtPaint, woodPaint;
   final List<Arch> arches = [];
@@ -323,6 +350,7 @@ class Art {
         filterQuality: FilterQuality.low);
 
   Future<void> _build() async {
+    bg = await Backdrops.get(cfg.world);
     sky = await _strip(lw(.02), kH, _drawSky);
     mt1 = await _strip(lw(.08), kH, (c) => _mount(c, lw(.08), 330, 95, th.mt1, 23, th.towers1));
     mt2 = await _strip(lw(.18), kH, (c) => _mount(c, lw(.18), 385, 70, th.mt2, 41, 0));

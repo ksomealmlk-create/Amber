@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -67,6 +68,7 @@ class _AppShellState extends State<AppShell> {
     eng.addListener(_onEngine);
     Future(() async {
       final sp = await Sprites.load();
+      await Backdrops.preload();
       final sv = await SaveData.load();
       if (!mounted) return;
       setState(() {
@@ -527,12 +529,28 @@ class _StarsPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
+/// ترسم صورة بنمط «cover» داخل المستطيل ثم تعتّمها قليلاً
+void _paintCover(Canvas c, Size s, ui.Image img, {double dark = .25}) {
+  final iw = img.width.toDouble(), ih = img.height.toDouble();
+  final sc = math.max(s.width / iw, s.height / ih);
+  final dw = iw * sc, dh = ih * sc;
+  c.drawImageRect(img, Rect.fromLTWH(0, 0, iw, ih), Rect.fromLTWH((s.width - dw) / 2, (s.height - dh) * .6, dw, dh),
+      Paint()..filterQuality = FilterQuality.medium);
+  c.drawRect(Offset.zero & s, Paint()..color = Color.fromRGBO(0, 0, 0, dark));
+}
+
 class _ThumbPainter extends CustomPainter {
   final WorldInfo w;
   _ThumbPainter(this.w);
 
   @override
   void paint(Canvas c, Size s) {
+    final bg = Backdrops.cache[w.id];
+    if (bg != null) {
+      _paintCover(c, s, bg, dark: .12);
+      c.drawRect(Offset.zero & s, Paint()..shader = ui.Gradient.linear(Offset(0, s.height * .55), Offset(0, s.height), const [Color(0x00000000), Color(0x88000000)]));
+      return;
+    }
     c.drawRect(Offset.zero & s, Paint()..shader = ui.Gradient.linear(Offset.zero, Offset(0, s.height), w.thumb));
     final r = mkr(w.id * 17 + 3);
     for (int i = 0; i < 18; i++) {
@@ -637,10 +655,15 @@ class _LevelThumbPainter extends CustomPainter {
   @override
   void paint(Canvas c, Size s) {
     final th = cfg.theme;
-    c.drawRect(Offset.zero & s, Paint()..shader = ui.Gradient.linear(Offset.zero, Offset(0, s.height), th.sky));
-    final r = mkr(cfg.world * 31 + cfg.index);
-    for (int i = 0; i < 14; i++) {
-      c.drawCircle(Offset(r() * s.width, r() * s.height * .5), .5 + r() * .8, Paint()..color = Color.fromRGBO(220, 235, 255, .3 + r() * .5));
+    final bg = Backdrops.cache[cfg.world];
+    if (bg != null) {
+      _paintCover(c, s, bg, dark: .3);
+    } else {
+      c.drawRect(Offset.zero & s, Paint()..shader = ui.Gradient.linear(Offset.zero, Offset(0, s.height), th.sky));
+      final r = mkr(cfg.world * 31 + cfg.index);
+      for (int i = 0; i < 14; i++) {
+        c.drawCircle(Offset(r() * s.width, r() * s.height * .5), .5 + r() * .8, Paint()..color = Color.fromRGBO(220, 235, 255, .3 + r() * .5));
+      }
     }
     final sx = s.width / cfg.length, sy = s.height / kH;
     Rect rc(double x, double y, double w, double h) => Rect.fromLTWH(x * sx, y * sy, (w * sx).clamp(1.5, 99999).toDouble(), (h * sy).clamp(1.5, 99999).toDouble());

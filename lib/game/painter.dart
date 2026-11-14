@@ -53,6 +53,26 @@ class GamePainter extends CustomPainter {
 
   Paint _fill(Color col) => Paint()..color = col;
 
+  static final Paint _bgPaint = Paint()..filterQuality = FilterQuality.medium;
+
+  /// خلفية العالم: صورة تغطي الشاشة وتتحرك ببطء مع تقدّم اللاعب عبر المرحلة
+  void _backdrop(Canvas c, double cam) {
+    final img = a.bg!;
+    final iw = img.width.toDouble(), ih = img.height.toDouble();
+    final sc = math.max(kH / ih, vw / iw) * 1.12;
+    final dw = iw * sc, dh = ih * sc;
+    final span = math.max(1.0, cfg.length - vw);
+    final k = (cam / span).clamp(0.0, 1.0);
+    final dx = -(dw - vw) * k;
+    final dy = -(dh - kH) * .6;
+    c.drawImageRect(img, Rect.fromLTWH(0, 0, iw, ih), Rect.fromLTWH(dx, dy, dw, dh), _bgPaint);
+    // تعتيم خفيف يحافظ على وضوح المنصات والأعداء فوق الصورة
+    c.drawRect(
+        Rect.fromLTWH(0, 0, vw, kH),
+        Paint()
+          ..shader = ui.Gradient.linear(Offset.zero, const Offset(0, kH), const [Color(0x33000000), Color(0x22000000), Color(0x80000000)], const [0, .5, 1]));
+  }
+
   void _scene(Canvas c) {
     final t = e.t;
     final cam = e.cam;
@@ -64,6 +84,11 @@ class GamePainter extends CustomPainter {
     c.save();
     c.translate(sx, sy);
     c.drawRect(Rect.fromLTWH(-12, -12, vw + 24, kH + 24), _fill(const Color(0xFF04060C)));
+    final hasBg = a.bg != null;
+    final forest = th.wall == WallStyle.trunks;
+    if (hasBg) {
+      _backdrop(c, cam);
+    } else {
     a.sky.draw(c, cam * .02, 0, vw);
     for (final q in _tw) {
       final al = .25 + .6 * (math.sin(t / 22 + q[2]) * .5 + .5);
@@ -73,7 +98,6 @@ class GamePainter extends CustomPainter {
     a.mt1.draw(c, cam * .08, 0, vw);
     _fog(c, a.fog1, 250, .12, .15);
     a.mt2.draw(c, cam * .18, 0, vw);
-    final forest = th.wall == WallStyle.trunks;
     for (int i = 0; i < 3; i++) {
       final f = .2 + i * .25;
       final path = Path();
@@ -96,6 +120,7 @@ class GamePainter extends CustomPainter {
       }
       c.drawPath(path, _fill(th.spikes[i]));
     }
+    }
     for (final o in _orbs) {
       final bx = ((o[0] - cam * .5) % 2450.0);
       if (bx > vw + 20) continue;
@@ -104,6 +129,7 @@ class GamePainter extends CustomPainter {
     c.drawRect(
         Rect.fromLTWH(0, 420, vw, 80),
         Paint()..shader = ui.Gradient.linear(const Offset(0, 420), const Offset(0, kH), const [Color(0x003C96C8), Color(0x4D3C96C8)]));
+    if (!hasBg) {
     a.wall.draw(c, cam * .8, 190, vw);
     for (final ar in a.arches) {
       final x0 = ar.x - cam * .8;
@@ -121,6 +147,7 @@ class GamePainter extends CustomPainter {
           Paint()
             ..blendMode = BlendMode.plus
             ..shader = ui.Gradient.linear(Offset(x0, top), Offset(x0 + 60, kFloorY), [th.moonGlow.a(al), th.moonGlow.a(0)]));
+    }
     }
     if (cfg.world == 4) _castleDecor(c);
     _props(c, 0);
