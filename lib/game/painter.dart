@@ -1,3 +1,4 @@
+import 'player_art.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -512,6 +513,8 @@ class GamePainter extends CustomPainter {
     if (ex < -40 || ex > vw + 40) return;
     final flashed = en.hit > 0 && en.kb > 0;
     final body = _fill(flashed ? Colors.white : const Color(0xFF2B1B2E));
+    if ((en.kind == 0 || en.kind == 2 || en.kind == 5) && _enemySprite(c, en, ex, flashed)) return;
+    if ((en.kind == 1 || en.kind == 6) && _flySprite(c, en, ex, flashed)) return;
     if (cfg.world == 4 && (en.kind == 0 || en.kind == 3 || en.kind == 5 || en.kind == 6)) {
       _castleEnemy(c, en, ex, flashed);
       return;
@@ -570,6 +573,72 @@ class GamePainter extends CustomPainter {
     final ex2 = ex + (en.d > 0 ? 12.5 : 5.5);
     glow(c, ex2, en.y + 5.5, 6, const C3(255, 106, 77), .8, add: true);
     c.drawCircle(Offset(ex2, en.y + 5.5), 1.8, _fill(const Color(0xFFFF8A5D)));
+  }
+
+  // ---------------- صور الأعداء الأرضية (assets/world_props/<world>/enemies)
+  // العالم: [اسم الحركة، ارتفاع الرسم، سرعة الحركة]
+  static const Map<int, List<Object>> _enemyAnim = {
+    1: ['lizard_walk', 15.0, 5],
+    2: ['frog_walk', 20.0, 4],
+    3: ['mushroom_walk', 22.0, 4],
+    4: ['wizard_walk', 40.0, 5],
+    5: ['slime_orange', 18.0, 2],
+    8: ['snake_idle', 18.0, 8],
+    9: ['snake_walk', 18.0, 6],
+    10: ['wizard_idle', 40.0, 6],
+    11: ['wizard_walk', 40.0, 5],
+  };
+
+  bool _enemySprite(Canvas c, Enemy en, double ex, bool flashed) {
+    final cfgA = _enemyAnim[cfg.world];
+    if (cfgA == null) return false;
+    final name = cfgA[0] as String, h = cfgA[1] as double, sp = cfgA[2] as int;
+    int n = 0;
+    while (a.wp.containsKey('en/$name/$n')) {
+      n++;
+    }
+    if (n == 0) return false;
+    final img = a.wp['en/$name/${(e.t ~/ sp) % n}']!;
+    final w = h * img.width / img.height;
+    final cx = ex + 9, by = en.y + 13;
+    c.save();
+    c.translate(cx, 0);
+    if (en.d < 0) c.scale(-1, 1);
+    final dst = Rect.fromLTWH(-w / 2, by - h, w, h);
+    final src = Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble());
+    glow(c, 0, by - h / 2, h, const C3(255, 106, 77), .18, add: true);
+    c.drawImageRect(img, src, dst, Paint()..filterQuality = FilterQuality.none..colorFilter = flashed ? const ColorFilter.mode(Colors.white, BlendMode.srcATop) : null);
+    c.restore();
+    return true;
+  }
+
+  // العدو الطائر: العالم: [اسم الحركة، حجم الرسم، سرعة الحركة]
+  static const Map<int, List<Object>> _flyAnim = {
+    6: ['bird', 28.0, 4],
+    7: ['ghost', 44.0, 6],
+    10: ['ghost', 44.0, 6],
+    11: ['bird', 28.0, 4],
+  };
+
+  bool _flySprite(Canvas c, Enemy en, double ex, bool flashed) {
+    final f = _flyAnim[cfg.world];
+    if (f == null) return false;
+    final name = f[0] as String, h = f[1] as double, sp = f[2] as int;
+    int n = 0;
+    while (a.wp.containsKey('en/$name/$n')) {
+      n++;
+    }
+    if (n == 0) return false;
+    final img = a.wp['en/$name/${(e.t ~/ sp) % n}']!;
+    final cx = ex + 9, cy = en.y + 6 + math.sin(e.t / 9 + en.ph) * 2;
+    c.save();
+    c.translate(cx, cy);
+    if (en.d < 0) c.scale(-1, 1);
+    glow(c, 0, 0, h * .8, const C3(255, 90, 120), .2, add: true);
+    c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), Rect.fromLTWH(-h / 2, -h / 2, h, h),
+        Paint()..filterQuality = FilterQuality.none..colorFilter = flashed ? const ColorFilter.mode(Colors.white, BlendMode.srcATop) : null);
+    c.restore();
+    return true;
   }
 
   void _spiderSmall(Canvas c, Enemy en, double ex, bool flashed) {
@@ -2070,6 +2139,7 @@ class GamePainter extends CustomPainter {
     final px = p.x - e.cam, py = p.y;
     if (e.phase == Phase.dead) return;
     if (p.inv > 0 && t % 6 < 3) return;
+    if (PlayerArt.draw(c, p, px, py, t)) return;
     const ch = 39.3;
     const k = ch / 448.0;
     const dw = 400 * k;

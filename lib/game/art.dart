@@ -175,6 +175,29 @@ class WorldImgs {
         }
       }
     }
+    // صور الأعداء: المفتاح 'en/<anim>/<i>' (بحجمها الأصلي)
+    if (set != null) {
+      for (final g in set.enemies.entries) {
+        for (int i = 0; i < g.value.length; i++) {
+          try {
+            final bd = await rootBundle.load(set.enemy(g.value[i]));
+            final codec = await ui.instantiateImageCodec(bd.buffer.asUint8List());
+            final im = (await codec.getNextFrame()).image;
+            if (g.value[i].endsWith('_sheet.png') && im.width > im.height) {
+              // شريط صور أفقي: كل إطار مربع بارتفاع الشريط
+              final h = im.height, n = im.width ~/ h;
+              for (int k = 0; k < n; k++) {
+                final rec = ui.PictureRecorder();
+                Canvas(rec).drawImageRect(im, Rect.fromLTWH(k * h.toDouble(), 0, h.toDouble(), h.toDouble()), Rect.fromLTWH(0, 0, h.toDouble(), h.toDouble()), Paint());
+                out['en/${g.key}/$k'] = await rec.endRecording().toImage(h, h);
+              }
+            } else {
+              out['en/${g.key}/$i'] = im;
+            }
+          } catch (_) {}
+        }
+      }
+    }
     cache[world] = out;
     return out;
   }
