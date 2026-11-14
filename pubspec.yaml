@@ -46,5 +46,6 @@ flutter:
     - assets/world_props/world11_floating_islands/
     - assets/world_props/world11_floating_islands/enemies/
     - assets/world_props/world11_floating_islands/backgrounds_extra/
+    - assets/player/
     - assets/sprites/
     - assets/backgrounds/
