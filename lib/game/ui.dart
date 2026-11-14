@@ -92,6 +92,14 @@ class _AppShellState extends State<AppShell> {
       }
       save!.save();
       if (mounted) setState(() {});
+      // انتقال مباشر للمرحلة التالية بدون قائمة (إلا في المرحلة الأخيرة: تظهر النهاية القصصية)
+      final nx = _nextAction();
+      if (nx != null) {
+        final k = playKey;
+        Future.delayed(const Duration(milliseconds: 900), () {
+          if (mounted && screen == _Screen.play && playKey == k && !loading) nx();
+        });
+      }
     }
   }
 
@@ -338,7 +346,6 @@ class _AppShellState extends State<AppShell> {
                           borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(value: done / SaveData.levelsPerWorld, minHeight: 6, backgroundColor: const Color(0x33FFFFFF), color: _gold),
                         ),
-                        if (w.id > 2) const Padding(padding: EdgeInsets.only(top: 4), child: Text('نسخة تجريبية: الزعيم الخاص قريباً', style: TextStyle(color: Color(0xFFFFB347), fontSize: 11))),
                         const SizedBox(height: 8),
                         Align(
                           alignment: Alignment.centerLeft,
@@ -368,6 +375,13 @@ class _AppShellState extends State<AppShell> {
       child: Column(children: [
         _header(w.name, trailing: _coinChip()),
         Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: SizedBox(height: 86, width: double.infinity, child: CustomPaint(painter: _ThumbPainter(w))),
+          ),
+        ),
+        Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Text('أكملت ${sv.worldDone(w.id)} من ${SaveData.levelsPerWorld} مراحل', style: const TextStyle(color: _ice, fontSize: 13)),
         ),
@@ -377,7 +391,7 @@ class _AppShellState extends State<AppShell> {
             padding: const EdgeInsets.all(14),
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: 2.3,
+            childAspectRatio: 1.25,
             children: [
               for (int l = 1; l <= SaveData.levelsPerWorld; l++) _levelTile(sv, w, l),
             ],
@@ -390,37 +404,47 @@ class _AppShellState extends State<AppShell> {
   Widget _levelTile(SaveData sv, WorldInfo w, int l) {
     final open = sv.levelUnlocked(w.id, l);
     final done = sv.levelDone(w.id, l);
-    final boss = w.id == 2 && l == 10;
+    final boss = l == SaveData.levelsPerWorld;
     final best = sv.bestEmbers[SaveData.id(w.id, l)];
-    final total = LevelFactory.build(w.id, l).totalEmbers;
+    final lc = LevelFactory.build(w.id, l);
+    final total = lc.totalEmbers;
     return GestureDetector(
       onTap: open ? () => _play(w.id, l) : null,
       child: Opacity(
-        opacity: open ? 1 : .5,
+        opacity: open ? 1 : .55,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(colors: done ? const [Color(0xFF2A3A24), Color(0xFF16221A)] : const [Color(0xFF1B2A48), Color(0xFF101A30)]),
+            color: done ? const Color(0xFF16221A) : const Color(0xFF101A30),
             border: Border.all(color: boss ? const Color(0xFFFF6A50) : (open ? const Color(0xAAFFD27A) : const Color(0x443A5A8C)), width: 1.6),
           ),
-          child: Row(children: [
-            Container(
-              width: 38,
-              height: 38,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0x55000000), border: Border.all(color: const Color(0x66FFD27A))),
-              child: open
-                  ? (done ? const Icon(Icons.check_rounded, color: Color(0xFF8CFFB0), size: 22) : Text('$l', style: const TextStyle(color: Color(0xFFFFE3A8), fontSize: 18, fontWeight: FontWeight.w900)))
-                  : const Icon(Icons.lock_rounded, color: _ice, size: 18),
-            ),
-            const SizedBox(width: 10),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             Expanded(
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(LevelFactory.nameOf(w.id, l), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFFFFE3A8), fontSize: 14, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 2),
+              child: Stack(children: [
+                Positioned.fill(child: CustomPaint(painter: _LevelThumbPainter(lc))),
+                Positioned(
+                  top: 5,
+                  right: 5,
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xAA000000), border: Border.all(color: const Color(0x88FFD27A))),
+                    child: open
+                        ? (done ? const Icon(Icons.check_rounded, color: Color(0xFF8CFFB0), size: 16) : Text('$l', style: const TextStyle(color: Color(0xFFFFE3A8), fontSize: 13, fontWeight: FontWeight.w900)))
+                        : const Icon(Icons.lock_rounded, color: _ice, size: 14),
+                  ),
+                ),
+                if (boss) const Positioned(top: 6, left: 6, child: Icon(Icons.whatshot_rounded, color: Color(0xFFFF6A50), size: 18)),
+              ]),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                Text(LevelFactory.nameOf(w.id, l), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFFFFE3A8), fontSize: 13, fontWeight: FontWeight.w800)),
                 Text(boss ? 'مواجهة الزعيم' : (best != null ? 'الجمرات: $best / $total' : 'مرحلة $l'),
-                    style: TextStyle(color: boss ? const Color(0xFFFF8A70) : const Color(0x99CFE4FF), fontSize: 11)),
+                    maxLines: 1, style: TextStyle(color: boss ? const Color(0xFFFF8A70) : const Color(0x99CFE4FF), fontSize: 10.5)),
               ]),
             ),
           ]),
@@ -506,6 +530,7 @@ class _StarsPainter extends CustomPainter {
 class _ThumbPainter extends CustomPainter {
   final WorldInfo w;
   _ThumbPainter(this.w);
+
   @override
   void paint(Canvas c, Size s) {
     c.drawRect(Offset.zero & s, Paint()..shader = ui.Gradient.linear(Offset.zero, Offset(0, s.height), w.thumb));
@@ -513,16 +538,148 @@ class _ThumbPainter extends CustomPainter {
     for (int i = 0; i < 18; i++) {
       c.drawCircle(Offset(r() * s.width, r() * s.height * .5), .5 + r(), Paint()..color = Color.fromRGBO(220, 235, 255, .4 + r() * .5));
     }
-    c.drawCircle(Offset(s.width * .72, s.height * .2), 9, Paint()..color = const Color(0xCCF0F6FF));
-    final m = Path()..moveTo(0, s.height);
-    for (double x = 0; x <= s.width; x += 3) {
-      m.lineTo(x, s.height * .62 - (r() * 3) - 12 * (0.5 + 0.5 * (x / s.width > .5 ? (1 - x / s.width) : x / s.width) * 2));
+    final acc = w.thumb.last;
+    c.drawCircle(Offset(s.width * .72, s.height * .2), s.shortestSide * .1, Paint()..color = const Color(0xCCF0F6FF));
+    final gy = s.height * .84;
+    final dark = Paint()..color = const Color(0xDD050810);
+    final tint = Paint()..color = Color.lerp(const Color(0xFF050810), acc, .35)!;
+    final cx = s.width, h = s.height;
+    // خلفية جبلية عامة
+    final m = Path()..moveTo(0, h);
+    for (double x = 0; x <= cx; x += 3) {
+      m.lineTo(x, h * .64 - (r() * 3) - 12 * (0.5 + 0.5 * (x / cx > .5 ? (1 - x / cx) : x / cx) * 2));
     }
-    m.lineTo(s.width, s.height);
+    m.lineTo(cx, h);
     m.close();
-    c.drawPath(m, Paint()..color = const Color(0xCC050810));
-    c.drawRect(Rect.fromLTWH(0, s.height * .84, s.width, s.height * .16), Paint()..color = w.ground);
-    c.drawRect(Rect.fromLTWH(0, s.height * .84, s.width, 2), Paint()..color = const Color(0x6678B4FF));
+    c.drawPath(m, dark);
+    // رمز خاص بكل عالم
+    switch (w.id) {
+      case 1: // كهف: صواعد وهوابط
+        for (int i = 0; i < 6; i++) {
+          final x = cx * (i + .5) / 6;
+          c.drawPath(Path()..moveTo(x - 5, 0)..lineTo(x + 5, 0)..lineTo(x, h * (.14 + r() * .16))..close(), tint);
+        }
+        break;
+      case 2: // غابة: أشجار
+      case 3: // فطر عملاق
+        for (int i = 0; i < 4; i++) {
+          final x = cx * (i + .6) / 4.4, th = h * (.28 + r() * .14);
+          c.drawRect(Rect.fromLTWH(x - 2, gy - th, 4, th), dark);
+          if (w.id == 2) {
+            c.drawPath(Path()..moveTo(x - 11, gy - th * .55)..lineTo(x, gy - th - 12)..lineTo(x + 11, gy - th * .55)..close(), tint);
+          } else {
+            c.drawOval(Rect.fromCenter(center: Offset(x, gy - th), width: 24, height: 13), Paint()..color = const Color(0xFFB4FF50).withOpacity(.55));
+          }
+        }
+        break;
+      case 4: // قلعة: أبراج
+      case 10: // قلعة الظلام
+        for (int i = 0; i < 3; i++) {
+          final x = cx * (i + .5) / 3.2, th = h * (.3 + (i == 1 ? .16 : r() * .08));
+          c.drawRect(Rect.fromLTWH(x - 9, gy - th, 18, th), w.id == 10 ? dark : tint);
+          for (int k = 0; k < 3; k++) {
+            c.drawRect(Rect.fromLTWH(x - 9 + k * 7, gy - th - 4, 4, 4), w.id == 10 ? dark : tint);
+          }
+          c.drawRect(Rect.fromLTWH(x - 1.5, gy - th * .7, 3, 6), Paint()..color = const Color(0xFFFFC870));
+        }
+        break;
+      case 5: // بركان
+        c.drawPath(Path()..moveTo(cx * .15, gy)..lineTo(cx * .5 - 6, h * .38)..lineTo(cx * .5 + 6, h * .38)..lineTo(cx * .85, gy)..close(), dark);
+        c.drawOval(Rect.fromCenter(center: Offset(cx * .5, h * .37), width: 16, height: 6), Paint()..color = const Color(0xFFFF7A1E));
+        break;
+      case 6: // جليد: قمم
+        for (int i = 0; i < 3; i++) {
+          final x = cx * (i + .5) / 3, th = h * (.3 + r() * .14);
+          c.drawPath(Path()..moveTo(x - 16, gy)..lineTo(x, gy - th)..lineTo(x + 16, gy)..close(), tint);
+          c.drawPath(Path()..moveTo(x - 5, gy - th * .75)..lineTo(x, gy - th)..lineTo(x + 5, gy - th * .75)..close(), Paint()..color = const Color(0xFFEAF6FF));
+        }
+        break;
+      case 7: // مقبرة: شواهد
+        for (int i = 0; i < 4; i++) {
+          final x = cx * (i + .5) / 4.2;
+          c.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(x - 6, gy - 20 - r() * 8, 12, 28), const Radius.circular(6)), tint);
+        }
+        break;
+      case 8: // معبد: أعمدة
+        for (int i = 0; i < 4; i++) {
+          final x = cx * (i + .5) / 4;
+          c.drawRect(Rect.fromLTWH(x - 4, gy - h * .38, 8, h * .38), tint);
+        }
+        c.drawRect(Rect.fromLTWH(cx * .08, gy - h * .42, cx * .84, 5), tint);
+        break;
+      case 9: // بلورات
+        for (int i = 0; i < 5; i++) {
+          final x = cx * (i + .5) / 5, th = h * (.14 + r() * .18);
+          c.drawPath(Path()..moveTo(x - 6, gy)..lineTo(x, gy - th)..lineTo(x + 6, gy)..close(), Paint()..color = const Color(0xFF5AEBFF).withOpacity(.65));
+        }
+        break;
+      default: // 11: جزر عائمة وبوابة
+        for (int i = 0; i < 3; i++) {
+          final x = cx * (i + .5) / 3, y = h * (.42 + (i == 1 ? .12 : 0) + r() * .05);
+          c.drawOval(Rect.fromCenter(center: Offset(x, y), width: 30, height: 8), tint);
+          c.drawPath(Path()..moveTo(x - 12, y + 2)..lineTo(x, y + 14)..lineTo(x + 12, y + 2)..close(), dark);
+        }
+        c.drawCircle(Offset(cx * .5, h * .3), s.shortestSide * .14, Paint()..style = PaintingStyle.stroke..strokeWidth = 3..color = const Color(0xFFFF6ED2));
+    }
+    c.drawRect(Rect.fromLTWH(0, gy, cx, h * .16), Paint()..color = w.ground);
+    c.drawRect(Rect.fromLTWH(0, gy, cx, 2), Paint()..color = const Color(0x6678B4FF));
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+/// صورة معاينة لمرحلة: مخطط الأرض والمنصات والعقبات فوق سماء ثيم العالم
+class _LevelThumbPainter extends CustomPainter {
+  final LevelConfig cfg;
+  _LevelThumbPainter(this.cfg);
+
+  @override
+  void paint(Canvas c, Size s) {
+    final th = cfg.theme;
+    c.drawRect(Offset.zero & s, Paint()..shader = ui.Gradient.linear(Offset.zero, Offset(0, s.height), th.sky));
+    final r = mkr(cfg.world * 31 + cfg.index);
+    for (int i = 0; i < 14; i++) {
+      c.drawCircle(Offset(r() * s.width, r() * s.height * .5), .5 + r() * .8, Paint()..color = Color.fromRGBO(220, 235, 255, .3 + r() * .5));
+    }
+    final sx = s.width / cfg.length, sy = s.height / kH;
+    Rect rc(double x, double y, double w, double h) => Rect.fromLTWH(x * sx, y * sy, (w * sx).clamp(1.5, 99999).toDouble(), (h * sy).clamp(1.5, 99999).toDouble());
+    final solid = Paint()..color = Color.lerp(th.edge, const Color(0xFF000000), .35)!;
+    final top = Paint()..color = th.edge;
+    for (final g in cfg.grounds) {
+      c.drawRect(rc(g.x, g.y, g.w, g.h), solid);
+      c.drawRect(rc(g.x, g.y, g.w, 4), top);
+    }
+    for (final b in [...cfg.platforms, ...cfg.extra]) {
+      c.drawRect(rc(b.x, b.y, b.w, b.h), solid);
+      c.drawRect(rc(b.x, b.y, b.w, 3), top);
+    }
+    final soft = Paint()..color = th.edge.withOpacity(.6);
+    for (final m in cfg.movs) {
+      c.drawRect(rc(m.x, m.y, m.w, 10), soft);
+    }
+    for (final k in cfg.crumbs) {
+      c.drawRect(rc(k.x, k.y, k.w, 10), soft);
+    }
+    for (final v in cfg.vanish) {
+      c.drawRect(rc(v.x, v.y, v.w, 10), soft);
+    }
+    final haz = Paint()..color = th.hazB;
+    for (final hz in cfg.hazards) {
+      c.drawRect(rc(hz.x, hz.y, hz.w, hz.h), haz);
+    }
+    final em = Paint()..color = const Color(0xFFFFC85A);
+    for (final e in cfg.embers) {
+      c.drawCircle(Offset(e[0] * sx, e[1] * sy), 1.3, em);
+    }
+    for (final ck in cfg.checks) {
+      c.drawRect(rc(ck.x - 1, ck.gy - 30, 2, 30), Paint()..color = const Color(0xFF8CFFB0));
+    }
+    if (cfg.boss != null) {
+      c.drawCircle(Offset(cfg.boss!.x * sx, (kFloorY - 26) * sy), s.shortestSide * .12, Paint()..color = const Color(0xFFFF5A44));
+    }
+    c.drawCircle(Offset(cfg.goalX * sx, cfg.goalY * sy), 3, Paint()..color = const Color(0xFFFFFFFF));
+    c.drawRect(Offset.zero & s, Paint()..shader = ui.Gradient.linear(Offset(0, s.height * .6), Offset(0, s.height), const [Color(0x00000000), Color(0x77000000)]));
   }
 
   @override
@@ -673,6 +830,51 @@ class _PlayViewState extends State<_PlayView> with SingleTickerProviderStateMixi
         final s = eng.playFrames ~/ 60;
         final time = '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
         final boss = widget.cfg.boss != null;
+        if (widget.onNext != null) {
+          return IgnorePointer(
+            child: Container(
+              color: const Color(0x66000000),
+              alignment: Alignment.center,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                _title(boss ? 'سقط ${widget.cfg.boss!.name}!' : 'أحسنت!', size: 30),
+                const SizedBox(height: 8),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  for (int i = 0; i < 3; i++) Icon(i < eng.stars ? Icons.star_rounded : Icons.star_border_rounded, color: const Color(0xFFFFD27A), size: 34),
+                ]),
+                const SizedBox(height: 6),
+                Text('الجمرات: ${eng.collected} / ${eng.totalEmbers}', style: const TextStyle(color: _ice, fontSize: 15)),
+              ]),
+            ),
+          );
+        }
+        if (widget.cfg.world == Worlds.all.length && widget.cfg.index == SaveData.levelsPerWorld) {
+          return _panel(children: [
+            _title('انتهت الرحلة', size: 30),
+            const SizedBox(height: 10),
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              for (int i = 0; i < 3; i++) Icon(i < eng.stars ? Icons.star_rounded : Icons.star_border_rounded, color: const Color(0xFFFFD27A), size: 34),
+            ]),
+            const SizedBox(height: 12),
+            const SizedBox(
+              width: 290,
+              child: Text(
+                'سقط الزعيم الأخير، وتحطّم ختم الفراغ الذي ابتلع العوالم.\n'
+                'عادت الكهوف والغابات والقلاع واحداً تلو الآخر إلى النور، '
+                'وانطلقت الجمرات الضائعة في السماء كأنها نجوم جديدة.\n'
+                'أما الجمرة التائهة فلم تعد تائهة: وجدت طريقها إلى الديار، '
+                'وصارت شعلة تحرس كل العوالم.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Color(0xFFFFE3A8), fontSize: 15, height: 1.7),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text('الجمرات: ${eng.collected} / ${eng.totalEmbers}      الأعداء: ${eng.kills}', style: const TextStyle(color: _ice, fontSize: 14)),
+            const SizedBox(height: 16),
+            _btn('إعادة المرحلة', widget.onRetry, secondary: true),
+            const SizedBox(height: 10),
+            _btn('قائمة المراحل', widget.onMenu, secondary: true),
+          ]);
+        }
         return _panel(children: [
           _title(boss ? 'سقط ${widget.cfg.boss!.name}!' : 'وصلت للبوابة!', size: 30),
           const SizedBox(height: 10),

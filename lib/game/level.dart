@@ -5,6 +5,13 @@ import 'world1.dart';
 import 'world2.dart';
 import 'world3.dart';
 import 'world4.dart';
+import 'world5.dart';
+import 'world6.dart';
+import 'world7.dart';
+import 'world8.dart';
+import 'world9.dart';
+import 'world10.dart';
+import 'world11.dart';
 
 const double kW = 360;
 const double kH = 500;
@@ -413,6 +420,12 @@ class SlipSpec {
   const SlipSpec(this.x, this.w);
 }
 
+/// منطقة رياح: تدفع اللاعب أفقياً (force موجبة لليمين، سالبة لليسار)
+class WindSpec {
+  final double x0, x1, force;
+  const WindSpec(this.x0, this.x1, this.force);
+}
+
 /// كمين: يخرج عدو عندما يقترب اللاعب (kind 0 زاحف من قبر، 4 شبح)
 class AmbushSpec {
   final double x;
@@ -446,6 +459,7 @@ class LevelConfig {
   final List<VanishSpec> vanish;
   final List<SlipSpec> slips;
   final List<AmbushSpec> ambush;
+  final List<WindSpec> winds;
   /// نقاط الحفظ (إن وُجدت: الموت يعيد اللاعب لآخر نقطة بدل بداية المرحلة)
   final List<CheckSpec> checks;
   final List<BubbleSpec> bubbles;
@@ -481,6 +495,7 @@ class LevelConfig {
     this.vanish = const [],
     this.slips = const [],
     this.ambush = const [],
+    this.winds = const [],
     this.checks = const [],
     this.bubbles = const [],
     this.fogs = const [],
@@ -512,17 +527,17 @@ class Worlds {
         [Color(0xFF0A0614), Color(0xFF2A1048), Color(0xFF5A2A7A)], Color(0xFF2A1840)),
     WorldInfo(4, 'قلعة الهياكل', 'قلعة مظلمة: سيوف وفؤوس وجماجم تطلق النار وأبواب بمفاتيح', 'ملك الهياكل', true,
         [Color(0xFF080808), Color(0xFF26262E), Color(0xFF3E3E4A)], Color(0xFF2A2A34)),
-    WorldInfo(5, 'مملكة الحمم', 'براكين وحمم متحركة وصخور متساقطة', 'تنين الحمم', true,
+    WorldInfo(5, 'مملكة الحمم', 'براكين وحمم متحركة وصخور متساقطة', 'سيد الحمم', true,
         [Color(0xFF140404), Color(0xFF5A1408), Color(0xFFB4400E)], Color(0xFF3A1208)),
-    WorldInfo(6, 'مملكة الجليد', 'كهوف جليدية وأرضيات زلقة وعواصف ثلج', 'العملاق الجليدي', true,
+    WorldInfo(6, 'مملكة الجليد', 'كهوف جليدية وأرضيات زلقة وعواصف ثلج', 'ملك الجليد', true,
         [Color(0xFF06101C), Color(0xFF1E4A70), Color(0xFF7CB8E0)], Color(0xFF2A4A68)),
-    WorldInfo(7, 'المقبرة القديمة', 'قبور وأشباح وضباب كثيف', 'حارس المقبرة', true,
+    WorldInfo(7, 'المقبرة القديمة', 'قبور وأشباح وضباب كثيف', 'حارس الموتى', true,
         [Color(0xFF05060A), Color(0xFF1A1E2E), Color(0xFF343C54)], Color(0xFF1E2230)),
-    WorldInfo(8, 'معبد الأسرار', 'تماثيل متحركة وألغاز ومفاتيح', 'الأسد الحجري', true,
+    WorldInfo(8, 'معبد الأسرار', 'تماثيل متحركة وألغاز ومفاتيح', 'حارس المعبد', true,
         [Color(0xFF100C04), Color(0xFF3E3010), Color(0xFF7A6422)], Color(0xFF3A2E14)),
-    WorldInfo(9, 'منجم الكريستال', 'بلورات مضيئة وعربات وجسور تنهار', 'وحش الكريستال', true,
+    WorldInfo(9, 'منجم الكريستال', 'بلورات مضيئة وعربات وجسور تنهار', 'حارس الكريستال', true,
         [Color(0xFF04080E), Color(0xFF0E3A50), Color(0xFF22A0B4)], Color(0xFF123444)),
-    WorldInfo(10, 'قلعة الظلام', 'قلعة ضخمة وغرف سرية وفخاخ متطورة', 'ملك الظلام', true,
+    WorldInfo(10, 'قلعة الظلام', 'قلعة ضخمة وغرف سرية وفخاخ متطورة', 'فارس الظلام', true,
         [Color(0xFF020204), Color(0xFF14101E), Color(0xFF2A2040)], Color(0xFF181424)),
     WorldInfo(11, 'العالم الأخير', 'تحديات صعبة وزعيم متعدد المراحل', 'الزعيم الأخير', true,
         [Color(0xFF0A0410), Color(0xFF3A1050), Color(0xFFB4308C)], Color(0xFF2A1038)),
@@ -551,11 +566,48 @@ class LevelFactory {
     'برج الموت', 'قاعة الفؤوس', 'سرداب الملك', 'عرش العظام', 'ملك الهياكل'
   ];
 
+
+  static const _names5 = [
+    'طريق البركان', 'الكهف الناري', 'جسر اللهب', 'منجم الحمم', 'بحيرة النار',
+    'البركان الداخلي', 'أطلال النار', 'ممر التنين', 'قلب البركان', 'سيد الحمم'
+  ];
+  static const _names6 = [
+    'المدخل المتجمد', 'الغابة الثلجية', 'النهر المتجمد', 'كهف البلورات', 'الجسر الجليدي',
+    'عاصفة الثلج', 'القصر المتجمد', 'قمة الجبل', 'قلب الجليد', 'ملك الجليد'
+  ];
+  static const _names7 = [
+    'بوابة المقبرة', 'ساحة القبور', 'سرداب الظلال', 'قاعة التوابيت', 'جسر الأرواح',
+    'متاهة العظام', 'برج الساعة', 'مقبرة الملك', 'سرداب الحارس', 'حارس الموتى'
+  ];
+  static const _names8 = [
+    'المدخل القديم', 'قاعة التماثيل', 'غرفة المفاتيح', 'ممر السهام', 'القاعة الدوارة',
+    'متاهة المعبد', 'غرفة الميزان', 'معبد الضوء', 'قاعة الأسرار', 'حارس المعبد'
+  ];
+  static const _names9 = [
+    'مدخل المنجم', 'ممر البلورات', 'المصعد القديم', 'الأنفاق المنهارة', 'سكة العربات',
+    'بحيرة الكريستال', 'غرفة الليزر', 'المنجم العميق', 'قلب الكريستال', 'حارس الكريستال'
+  ];
+  static const _names10 = [
+    'الطريق إلى القلعة', 'الساحة الخارجية', 'السجن القديم', 'برج الظلال', 'قاعة الفرسان',
+    'المكتبة المظلمة', 'الجسر الأسود', 'قاعة السحر', 'عرش الظلام', 'فارس الظلام'
+  ];
+  static const _names11 = [
+    'بوابة النهاية', 'جزر الفراغ', 'الغابة المشوهة', 'أطلال الزمن', 'ممر العوالم',
+    'السماء المكسورة', 'متاهة الفراغ', 'حراس النهاية', 'بوابة المصير', 'المعركة النهائية'
+  ];
+
   static String nameOf(int w, int i) {
     if (w == 1) return _names1[i - 1];
     if (w == 2) return _names2[i - 1];
     if (w == 3) return _names3[i - 1];
     if (w == 4) return _names4[i - 1];
+    if (w == 5) return _names5[i - 1];
+    if (w == 6) return _names6[i - 1];
+    if (w == 7) return _names7[i - 1];
+    if (w == 8) return _names8[i - 1];
+    if (w == 9) return _names9[i - 1];
+    if (w == 10) return _names10[i - 1];
+    if (w == 11) return _names11[i - 1];
     return '${Worlds.of(w).name} $i';
   }
 
@@ -568,6 +620,20 @@ class LevelFactory {
     if (world == 3) return World3.build(idx);
     // العالم الرابع «قلعة الهياكل»: المراحل العشر مصمَّمة يدوياً
     if (world == 4) return World4.build(idx);
+    // العالم الخامس «مملكة الحمم»: المراحل العشر مصمَّمة يدوياً
+    if (world == 5) return World5.build(idx);
+    // العالم السادس «مملكة الجليد»: المراحل العشر مصمَّمة يدوياً
+    if (world == 6) return World6.build(idx);
+    // العالم السابع «المقبرة القديمة»: المراحل العشر مصمَّمة يدوياً
+    if (world == 7) return World7.build(idx);
+    // العالم الثامن «معبد الأسرار»: المراحل العشر مصمَّمة يدوياً
+    if (world == 8) return World8.build(idx);
+    // العالم التاسع «منجم الكريستال»: المراحل العشر مصمَّمة يدوياً
+    if (world == 9) return World9.build(idx);
+    // العالم العاشر «قلعة الظلام»: المراحل العشر مصمَّمة يدوياً
+    if (world == 10) return World10.build(idx);
+    // العالم الحادي عشر «العالم الأخير»: المراحل العشر مصمَّمة يدوياً
+    if (world == 11) return World11.build(idx);
     final cfg = LevelGen.build(world, idx);
     return _solidFloor(cfg);
   }

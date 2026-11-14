@@ -806,6 +806,15 @@ class GameEngine extends ChangeNotifier {
       } else {
         p.vx *= p.g ? (slip ? .975 : .7) : .93;
       }
+      if (cfg.winds.isNotEmpty) {
+        final wx = p.x + 7;
+        for (final w in cfg.winds) {
+          if (wx > w.x0 && wx < w.x1) {
+            p.vx += p.g ? w.force : w.force * .4;
+            if (t % 5 == 0) _spark(p.x + 7 - (w.force > 0 ? 34 : -34), p.y + rng.nextDouble() * 22, 1, const Color(0xFFDDEEFF), add: true);
+          }
+        }
+      }
       p.vx = math.max(-3.0, math.min(3.0, p.vx));
       p.vy += .5;
       if (p.vy > 11) p.vy = 11;
@@ -1094,8 +1103,8 @@ class GameEngine extends ChangeNotifier {
       }
       return;
     }
-    if (b.kind == 1 || b.kind == 12 || b.kind == 13) _guardianPhase(b);
-    if (b.kind != 1 && b.kind != 12 && b.kind != 13 && b.hp <= b.maxHp * 0.4 && !b.enraged) {
+    if (_phasedBoss(b.kind)) _guardianPhase(b);
+    if (!_phasedBoss(b.kind) && b.hp <= b.maxHp * 0.4 && !b.enraged) {
       b.enraged = true;
       shake = 14;
       _spark(b.x + b.w / 2, b.y + 20, 40, const Color(0xFFFF4A3A), add: true);
@@ -1124,7 +1133,7 @@ class GameEngine extends ChangeNotifier {
         b.x = math.max(4.0, math.min(cfg.length - 14 - b.w, b.x));
         b.cd--;
         if (b.cd <= 0) {
-          final pl = b.kind == 1 ? _guardPool(b.ph) : (b.kind == 12 ? _mushPool(b.ph) : (b.kind == 13 ? _skelPool(b.ph) : _pool(b.kind)));
+          final pl = b.kind == 1 ? _guardPool(b.ph) : (b.kind == 12 ? _mushPool(b.ph) : (b.kind == 13 ? _skelPool(b.ph) : _worldBossPool(b.kind, b.ph)));
           b.st = pl[rng.nextInt(pl.length)];
           b.t = 0;
         }
@@ -1374,6 +1383,17 @@ class GameEngine extends ChangeNotifier {
     if (ph <= 1) return const ['spore', 'charge', 'slam', 'spore', 'charge'];
     if (ph == 2) return const ['spore', 'cloud', 'charge', 'rain', 'slam', 'charge'];
     return const ['spore', 'cloud', 'quake', 'rain', 'slam', 'ring'];
+  }
+
+  /// زعماء العوالم 5–11: ثلاث مراحل هجوم عند 67٪ و34٪ من الصحة (كالحارس الحجري)
+  bool _phasedBoss(int k) => k == 1 || k == 12 || k == 13 || (k >= 5 && k <= 11);
+
+  List<String> _worldBossPool(int k, int ph) {
+    final base = _pool(k);
+    if (ph <= 1) return base;
+    final sm = (k == 7 || k == 10 || k == 11) ? 'summon' : 'rain';
+    if (ph == 2) return [...base, 'slam', sm];
+    return [...base, 'quake', 'rain', 'ring', sm];
   }
 
   List<String> _pool(int k) {
