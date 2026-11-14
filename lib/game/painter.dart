@@ -528,6 +528,7 @@ class GamePainter extends CustomPainter {
       return;
     }
     if (en.kind == 4) {
+      if ((cfg.world == 7 || cfg.world == 10) && _flySprite(c, en, ex, flashed)) return;
       _wraith(c, en, ex, flashed);
       return;
     }
@@ -1409,6 +1410,29 @@ class GamePainter extends CustomPainter {
   }
 
   // ---------- الزعماء ذوو التصميم الخاص (كل زعيم بشكل وهجمات مختلفة)
+  // سيد الحمم: صور التنين (boss_dragon_idle / boss_dragon_breath)
+  bool _dragonBoss(Canvas c, Boss b, double cx, double fade, bool flashed) {
+    final breath = b.st == 'roar' || b.st == 'intro';
+    final name = breath ? 'boss_dragon_breath' : 'boss_dragon_idle';
+    int n = 0;
+    while (a.wp.containsKey('en/$name/$n')) {
+      n++;
+    }
+    if (n == 0) return false;
+    final img = a.wp['en/$name/${(e.t ~/ 6) % n}']!;
+    final w = 150.0, h = w * img.height / img.width;
+    final by = b.y + b.h;
+    c.drawOval(Rect.fromCenter(center: Offset(cx, kFloorY), width: 120, height: 12), _fill(const Color(0x66000000)));
+    c.saveLayer(Rect.fromLTWH(cx - 140, by - h - 20, 280, h + 40), Paint()..color = Color.fromRGBO(255, 255, 255, fade));
+    c.translate(cx, 0);
+    if (b.dir > 0) c.scale(-1, 1);
+    glow(c, 0, by - h / 2, 70, b.enraged ? const C3(255, 58, 42) : const C3(255, 106, 26), .25, add: true);
+    c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), Rect.fromLTWH(-w / 2, by - h, w, h),
+        Paint()..filterQuality = FilterQuality.none..colorFilter = flashed ? const ColorFilter.mode(Colors.white, BlendMode.srcATop) : null);
+    c.restore();
+    return true;
+  }
+
   void _bossGeneric(Canvas c) {
     final b = e.boss!;
     final cx = b.x + b.w / 2 - e.cam;
@@ -1425,6 +1449,7 @@ class GamePainter extends CustomPainter {
     final cy = b.y + b.h / 2;
     final face = b.dir.toDouble();
     final fade = b.st == 'dead' ? math.max(0.0, 1 - math.max(0, b.dead - 60) / 80) : 1.0;
+    if (k == 5 && _dragonBoss(c, b, cx, fade, flashed)) return;
     // ألوان: [أساس، لون ثانوي، توهج]
     const pal = <int, List<Color>>{
       1: [Color(0xFF5A5F6B), Color(0xFF9AA0AE), Color(0xFF6AE0FF)],
@@ -2052,6 +2077,20 @@ class GamePainter extends CustomPainter {
           c.drawCircle(Offset(bx, by), warn ? 7 : 12, Paint()..color = Color.fromRGBO(150, 255, 90, al));
         }
         glow(c, x, q.y - 6, 40, const C3(160, 255, 90), warn ? .15 : .4, add: true);
+        continue;
+      }
+      if (cfg.world == 5 && (q.kind == 2 || q.kind == 3) && a.wp.containsKey('en/fireball/0')) {
+        int n = 0;
+        while (a.wp.containsKey('en/fireball/$n')) {
+          n++;
+        }
+        final img = a.wp['en/fireball/${(e.t ~/ 4) % n}']!;
+        c.save();
+        c.translate(x, q.y);
+        c.rotate(math.atan2(q.vy, q.vx));
+        glow(c, 0, 0, 18, const C3(255, 120, 40), .7, add: true);
+        c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), Rect.fromLTWH(-12, -4, 24, 8), Paint()..filterQuality = FilterQuality.none);
+        c.restore();
         continue;
       }
       if (q.kind == 3) {
