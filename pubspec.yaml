@@ -14,5 +14,37 @@ dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/world_props/world01_blue_cave/
+    - assets/world_props/world01_blue_cave/enemies/
+    - assets/world_props/world01_blue_cave/backgrounds_extra/
+    - assets/world_props/world02_forest/
+    - assets/world_props/world02_forest/enemies/
+    - assets/world_props/world02_forest/backgrounds_extra/
+    - assets/world_props/world03_mushroom/
+    - assets/world_props/world03_mushroom/enemies/
+    - assets/world_props/world03_mushroom/backgrounds_extra/
+    - assets/world_props/world04_castle/
+    - assets/world_props/world04_castle/enemies/
+    - assets/world_props/world04_castle/backgrounds_extra/
+    - assets/world_props/world05_lava/
+    - assets/world_props/world05_lava/enemies/
+    - assets/world_props/world05_lava/backgrounds_extra/
+    - assets/world_props/world06_ice/
+    - assets/world_props/world06_ice/enemies/
+    - assets/world_props/world06_ice/backgrounds_extra/
+    - assets/world_props/world07_graveyard/
+    - assets/world_props/world07_graveyard/enemies/
+    - assets/world_props/world08_temple/
+    - assets/world_props/world08_temple/enemies/
+    - assets/world_props/world08_temple/backgrounds_extra/
+    - assets/world_props/world09_crystal/
+    - assets/world_props/world09_crystal/enemies/
+    - assets/world_props/world09_crystal/backgrounds_extra/
+    - assets/world_props/world10_dark_castle/
+    - assets/world_props/world10_dark_castle/enemies/
+    - assets/world_props/world10_dark_castle/backgrounds_extra/
+    - assets/world_props/world11_floating_islands/
+    - assets/world_props/world11_floating_islands/enemies/
+    - assets/world_props/world11_floating_islands/backgrounds_extra/
     - assets/sprites/
     - assets/backgrounds/
