@@ -1,3 +1,4 @@
+import 'player_art.dart';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
@@ -2070,6 +2071,7 @@ class GamePainter extends CustomPainter {
     final px = p.x - e.cam, py = p.y;
     if (e.phase == Phase.dead) return;
     if (p.inv > 0 && t % 6 < 3) return;
+    if (PlayerArt.draw(c, p, px, py, t)) return;
     const ch = 39.3;
     const k = ch / 448.0;
     const dw = 400 * k;
