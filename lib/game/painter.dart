@@ -950,6 +950,29 @@ class GamePainter extends CustomPainter {
     }
   }
 
+  // لوح الأشواك (مجسم 3D مرندر): fullH = ارتفاع الأشواك كاملة، hh = الارتفاع الحالي
+  bool _spike3d(Canvas c, double px, double w, double base, double fullH, double hh, {bool flash = false}) {
+    final img = a.sp['spike3d'];
+    if (img == null || fullH < 4) return false;
+    final tileH = fullH / 0.7, sink = tileH * 0.3;
+    final tw0 = tileH * img.width / img.height;
+    final n = math.max(1, (w / tw0).round());
+    final tw = w / n;
+    final frac = (hh / fullH).clamp(0.0, 1.0);
+    final top = base + sink - frac * (tileH - sink);
+    final src = Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble());
+    final paint = Paint()
+      ..filterQuality = FilterQuality.medium
+      ..colorFilter = flash ? const ColorFilter.mode(Color(0x99FF9A3A), BlendMode.srcATop) : null;
+    c.save();
+    c.clipRect(Rect.fromLTRB(px - 1, base - fullH - 10, px + w + 1, base));
+    for (int i = 0; i < n; i++) {
+      c.drawImageRect(img, src, Rect.fromLTWH(px + i * tw, top, tw, tileH), paint);
+    }
+    c.restore();
+    return true;
+  }
+
   void _timed(Canvas c, TimedHaz h, double px) {
     final t = e.t;
     final s = h.s;
@@ -975,6 +998,10 @@ class GamePainter extends CustomPainter {
         break;
       case 1: // أشواك تظهر
         final hh2 = on ? h.h : (warn ? 5.0 : 2.0);
+        if (_spike3d(c, px, h.w, kFloorY - 2, h.h, hh2)) {
+          if (on) glow(c, cx, kFloorY - 10, h.w, const C3(255, 120, 100), .25, add: true);
+          break;
+        }
         c.drawRect(Rect.fromLTWH(px, kFloorY - 2, h.w, 2), _fill(const Color(0xFF30343E)));
         final n = (h.w / 8).floor();
         for (int i = 0; i < n; i++) {
@@ -1966,6 +1993,10 @@ class GamePainter extends CustomPainter {
             for (double xx = px + 4; xx < px + h.w - 2; xx += 9) {
               c.drawRect(Rect.fromLTWH(xx, base - 2, 4, 2), hole);
             }
+            return true;
+          }
+          if (_spike3d(c, px, h.w, base, h.h, hh, flash: fl)) {
+            if (on) glow(c, px + h.w / 2, base - hh / 2, h.w * .6, const C3(255, 200, 140), .12, add: true);
             return true;
           }
           final col = on ? const Color(0xFFE6E0CE) : const Color(0xFF8A8470);

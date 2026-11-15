@@ -411,6 +411,7 @@ class Sprites {
       await one(n, n);
       await one('${n}_d', '${n}_d');
     }
+    await one('spike3d', 'spike3d');
     for (final pre in const ['spider3d', 'bat3d', 'skel_minion', 'skel_warrior', 'skel_mage']) {
       for (int i = 0; i < 8; i++) {
         await one('${pre}_$i', '${pre}_$i');
