@@ -513,8 +513,11 @@ class GamePainter extends CustomPainter {
     if (ex < -40 || ex > vw + 40) return;
     final flashed = en.hit > 0 && en.kb > 0;
     final body = _fill(flashed ? Colors.white : const Color(0xFF2B1B2E));
-    if ((en.kind == 0 || en.kind == 2 || en.kind == 5) && _enemySprite(c, en, ex, flashed)) return;
-    if ((en.kind == 1 || en.kind == 6) && _flySprite(c, en, ex, flashed)) return;
+    if (en.kind == 2 && _spider3d(c, en, ex, flashed)) return;
+    if (en.kind == 0 && _model3d(c, en, ex, flashed, 'skel_minion', 28, 5)) return;
+    if (en.kind == 5 && _model3d(c, en, ex, flashed, 'skel_warrior', 28, 5)) return;
+    if (en.kind == 3 && _model3d(c, en, ex, flashed, 'skel_mage', 30, 6)) return;
+    if ((en.kind == 1 || en.kind == 6) && _model3d(c, en, ex, flashed, 'bat3d', 22, 3, fly: true)) return;
     if (cfg.world == 4 && (en.kind == 0 || en.kind == 3 || en.kind == 5 || en.kind == 6)) {
       _castleEnemy(c, en, ex, flashed);
       return;
@@ -589,6 +592,40 @@ class GamePainter extends CustomPainter {
     10: ['wizard_idle', 40.0, 6],
     11: ['wizard_walk', 40.0, 5],
   };
+
+  // العنكبوت: مجسم 3D (clockwork_spider) مرندر لـ 8 صور مشي
+  bool _spider3d(Canvas c, Enemy en, double ex, bool flashed) {
+    final img = a.sp['spider3d_${(e.t ~/ 4) % 8}'];
+    if (img == null) return false;
+    const w = 34.0;
+    final h = w * img.height / img.width;
+    final cx = ex + 10, by = en.y + 13;
+    c.drawOval(Rect.fromCenter(center: Offset(cx, by), width: w * .8, height: 4), _fill(const Color(0x55000000)));
+    c.save();
+    c.translate(cx, 0);
+    if (en.d < 0) c.scale(-1, 1);
+    c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), Rect.fromLTWH(-w / 2, by - h, w, h),
+        Paint()..filterQuality = FilterQuality.medium..colorFilter = flashed ? const ColorFilter.mode(Colors.white, BlendMode.srcATop) : null);
+    c.restore();
+    return true;
+  }
+
+  // مجسمات 3D مرندرة (هياكل عظمية + خفاش): h = ارتفاع الرسم، sp = سرعة الحركة
+  bool _model3d(Canvas c, Enemy en, double ex, bool flashed, String pre, double h, int sp, {bool fly = false}) {
+    final img = a.sp['${pre}_${(e.t ~/ sp) % 8}'];
+    if (img == null) return false;
+    final w = h * img.width / img.height;
+    final cx = ex + 9;
+    final by = fly ? en.y + 6 + h / 2 + math.sin(e.t / 9 + en.ph) * 2 : en.y + 13;
+    if (!fly) c.drawOval(Rect.fromCenter(center: Offset(cx, by), width: w * .9, height: 4), _fill(const Color(0x55000000)));
+    c.save();
+    c.translate(cx, 0);
+    if (en.d < 0) c.scale(-1, 1);
+    c.drawImageRect(img, Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()), Rect.fromLTWH(-w / 2, by - h, w, h),
+        Paint()..filterQuality = FilterQuality.medium..colorFilter = flashed ? const ColorFilter.mode(Colors.white, BlendMode.srcATop) : null);
+    c.restore();
+    return true;
+  }
 
   bool _enemySprite(Canvas c, Enemy en, double ex, bool flashed) {
     final cfgA = _enemyAnim[cfg.world];

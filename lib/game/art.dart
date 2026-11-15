@@ -411,6 +411,11 @@ class Sprites {
       await one(n, n);
       await one('${n}_d', '${n}_d');
     }
+    for (final pre in const ['spider3d', 'bat3d', 'skel_minion', 'skel_warrior', 'skel_mage']) {
+      for (int i = 0; i < 8; i++) {
+        await one('${pre}_$i', '${pre}_$i');
+      }
+    }
     for (final n in const ['hero_body', 'hero_armN', 'hero_armF', 'hero_legN', 'hero_legF', 'hero_weapon']) {
       await one(n, n);
     }
